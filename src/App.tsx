@@ -7,9 +7,21 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Progress } from "./components/ui/progress";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./components/ui/dialog";
-import { Search, X, MapPin, CircleUser } from "lucide-react";
+import { Search, X, MapPin, CircleUser, LocateFixed, Loader2 } from "lucide-react";
 import { supabase } from "./utils/supabase/client";
 import NounNationalPark from "./imports/NounNationalPark19895091";
+
+const GOOGLE_MAPS_API_KEY = "AIzaSyDljWXxLD0ofXyh00bCYNtF1cW4YOXm48k";
+
+function haversineDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 3959;
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLng = (lng2 - lng1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 const parkImages: Record<string, string> = {
   "acadia": "https://images.unsplash.com/photo-1609697992606-4d6ec6d6178a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhY2FkaWElMjBuYXRpb25hbCUyMHBhcmt8ZW58MXx8fHwxNzYyOTI3NTA0fDA&ixlib=rb-4.1.0&q=80&w=1080",
@@ -102,6 +114,9 @@ export default function App() {
   const [sortOrder, setSortOrder] = useState<SortType>("alphabetical");
   const [openParkId, setOpenParkId] = useState<string | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [nearestPark, setNearestPark] = useState<{ park: (typeof nationalParks)[0]; distanceMiles: number } | null>(null);
+  const [nearestDialogOpen, setNearestDialogOpen] = useState(false);
 
   // ── Auth listener ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -249,6 +264,26 @@ export default function App() {
     setAuthState("app");
   };
 
+  const handleFindNearest = () => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords: { latitude, longitude } }) => {
+        let nearest = nationalParks[0];
+        let minDist = haversineDistanceMiles(latitude, longitude, nearest.lat, nearest.lng);
+        for (const park of nationalParks.slice(1)) {
+          const d = haversineDistanceMiles(latitude, longitude, park.lat, park.lng);
+          if (d < minDist) { minDist = d; nearest = park; }
+        }
+        setNearestPark({ park: nearest, distanceMiles: Math.round(minDist) });
+        setNearestDialogOpen(true);
+        setLocating(false);
+      },
+      () => setLocating(false),
+      { timeout: 10000 },
+    );
+  };
+
   // ── Render loading ────────────────────────────────────────────────────────
   if (authState === "loading") {
     return (
@@ -336,6 +371,53 @@ export default function App() {
               </DialogContent>
             </Dialog>
 
+            {/* Nearest park result dialog */}
+            <Dialog open={nearestDialogOpen} onOpenChange={setNearestDialogOpen}>
+              <DialogContent className="max-w-[320px] p-0 overflow-hidden [&>button]:hidden">
+                <DialogTitle className="sr-only">Nearest National Park</DialogTitle>
+                <DialogDescription className="sr-only">The nearest national park to your current location</DialogDescription>
+                {nearestPark && (
+                  <>
+                    <img
+                      src={`https://maps.googleapis.com/maps/api/staticmap?center=${nearestPark.park.lat},${nearestPark.park.lng}&zoom=7&size=640x280&scale=2&markers=color:0x22c55e%7C${nearestPark.park.lat},${nearestPark.park.lng}&key=${GOOGLE_MAPS_API_KEY}`}
+                      alt={`Map showing ${nearestPark.park.name}`}
+                      className="w-full h-[140px] object-cover"
+                    />
+                    <div className="p-5 flex flex-col gap-3">
+                      <div>
+                        <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-1">Nearest National Park</p>
+                        <p className="font-bold text-[18px] text-black leading-tight">{nearestPark.park.name}</p>
+                        <p className="text-gray-500 text-sm mt-0.5">{nearestPark.park.state}</p>
+                      </div>
+                      <p className="text-brand-accent font-semibold">
+                        {nearestPark.distanceMiles.toLocaleString()} miles away
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => {
+                            setFilter("all");
+                            setSearchQuery("");
+                            setNearestDialogOpen(false);
+                            setOpenParkId(nearestPark.park.id);
+                          }}
+                          className="flex-1 bg-brand-accent hover:bg-brand-accent/90 text-white rounded-[4px]"
+                        >
+                          View Park
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => setNearestDialogOpen(false)}
+                          className="rounded-[4px]"
+                        >
+                          Close
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </DialogContent>
+            </Dialog>
+
             {/* Search and filters */}
             <div className="flex gap-2">
               <div className="relative flex-1 min-w-0">
@@ -374,31 +456,46 @@ export default function App() {
             </div>
 
             {/* Stats */}
-            {filter === "visited" ? (
-              <div>
-                <p className="leading-[normal] not-italic text-black mt-1">
-                  <span className="opacity-[0.5]">Showing {visitedCount} </span>
-                  <span className="text-brand-accent">visited</span>
-                  <span className="opacity-[0.5]"> of {totalCount} parks</span>
-                </p>
-                <Progress value={(visitedCount / totalCount) * 100} className="h-2 mt-2" indicatorClassName="bg-brand-accent" />
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                {filter === "visited" ? (
+                  <div>
+                    <p className="leading-[normal] not-italic text-black">
+                      <span className="opacity-[0.5]">Showing {visitedCount} </span>
+                      <span className="text-brand-accent">visited</span>
+                      <span className="opacity-[0.5]"> of {totalCount} parks</span>
+                    </p>
+                    <Progress value={(visitedCount / totalCount) * 100} className="h-2 mt-2" indicatorClassName="bg-brand-accent" />
+                  </div>
+                ) : filter === "to-go" ? (
+                  <div>
+                    <p className="leading-[normal] not-italic text-black">
+                      <span className="opacity-[0.5]">Showing {totalCount - visitedCount} </span>
+                      <span className="text-black">to go</span>
+                      <span className="opacity-[0.5]"> of {totalCount} parks</span>
+                    </p>
+                    <Progress value={(visitedCount / totalCount) * 100} className="h-2 mt-2" indicatorClassName="bg-brand-accent" />
+                  </div>
+                ) : (
+                  <p className="leading-[normal] not-italic text-gray-500">
+                    {dataLoading ? "Loading..." : filteredParks.length === totalCount && !searchQuery
+                      ? <>Showing all {totalCount} national parks{sortOrder === "state" && <span className="text-brand-accent"> by state</span>}</>
+                      : <>Showing {filteredParks.length} of {totalCount} parks{sortOrder === "state" && <span className="text-brand-accent"> by state</span>}</>}
+                  </p>
+                )}
               </div>
-            ) : filter === "to-go" ? (
-              <div>
-                <p className="leading-[normal] not-italic text-black mt-1">
-                  <span className="opacity-[0.5]">Showing {totalCount - visitedCount} </span>
-                  <span className="text-black">to go</span>
-                  <span className="opacity-[0.5]"> of {totalCount} parks</span>
-                </p>
-                <Progress value={(visitedCount / totalCount) * 100} className="h-2 mt-2" indicatorClassName="bg-brand-accent" />
-              </div>
-            ) : (
-              <p className="leading-[normal] not-italic text-gray-500 mt-1">
-                {dataLoading ? "Loading..." : filteredParks.length === totalCount && !searchQuery
-                  ? <>Showing all {totalCount} national parks{sortOrder === "state" && <span className="text-brand-accent"> by state</span>}</>
-                  : <>Showing {filteredParks.length} of {totalCount} parks{sortOrder === "state" && <span className="text-brand-accent"> by state</span>}</>}
-              </p>
-            )}
+              <button
+                onClick={handleFindNearest}
+                disabled={locating}
+                className="p-1 text-brand-accent hover:opacity-70 transition-opacity shrink-0 disabled:opacity-50"
+                aria-label="Find nearest national park"
+                title="Find nearest national park"
+              >
+                {locating
+                  ? <Loader2 className="w-6 h-6 animate-spin" />
+                  : <LocateFixed className="w-6 h-6" />}
+              </button>
+            </div>
           </div>
         </div>
       </header>
