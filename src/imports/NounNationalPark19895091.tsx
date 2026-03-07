@@ -21,7 +21,7 @@ export default function NounNationalPark() {
   return (
     <div className="relative size-full" data-name="noun-national-park-1989509 1">
       <div className="flex flex-row items-center size-full">
-        <div className="box-border content-stretch flex gap-[13px] items-center px-px py-0 relative size-full p-[0px]">
+        <div className="box-border content-stretch flex gap-[13px] items-center justify-center px-0 py-0 relative size-full text-left">
           <Group />
           <p className="font-['Inter'] font-bold leading-[normal] not-italic relative shrink-0 text-[50px] text-brand-accent text-nowrap whitespace-pre">ParkPal</p>
         </div>
