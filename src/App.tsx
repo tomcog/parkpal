@@ -6,7 +6,8 @@ import { nationalParks } from "./data/nationalParks";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Progress } from "./components/ui/progress";
-import { Search, X, MapPin, LogOut, User as UserIcon } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./components/ui/dialog";
+import { Search, X, MapPin, CircleUser } from "lucide-react";
 import { supabase } from "./utils/supabase/client";
 import NounNationalPark from "./imports/NounNationalPark19895091";
 
@@ -100,6 +101,7 @@ export default function App() {
   const [dataLoading, setDataLoading] = useState(false);
   const [sortOrder, setSortOrder] = useState<SortType>("alphabetical");
   const [openParkId, setOpenParkId] = useState<string | null>(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   // ── Auth listener ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -290,30 +292,49 @@ export default function App() {
         <div className="px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col gap-4">
 
-            {/* Logo + user info */}
+            {/* Logo + user icon */}
             <div className="flex items-center justify-between">
               <div className="flex-1" />
               <div className="h-[64px] w-fit">
                 <NounNationalPark />
               </div>
-              <div className="flex-1 flex justify-end items-center gap-2">
-                {user ? (
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1.5 text-sm text-gray-500 max-w-[120px] truncate">
-                      <UserIcon className="w-4 h-4 flex-shrink-0 text-brand-accent" />
-                      <span className="truncate">{user.email?.split("@")[0]}</span>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-gray-400 hover:text-gray-600 p-1" title="Sign out">
-                      <LogOut className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-gray-400 hover:text-gray-600 text-xs gap-1">
-                    Sign in
-                  </Button>
-                )}
+              <div className="flex-1 flex justify-end">
+                <button
+                  onClick={() => setUserMenuOpen(true)}
+                  className="p-1 text-gray-400 hover:text-brand-accent transition-colors"
+                  aria-label="Account"
+                >
+                  <CircleUser className="w-6 h-6" />
+                </button>
               </div>
             </div>
+
+            {/* User menu dialog */}
+            <Dialog open={userMenuOpen} onOpenChange={setUserMenuOpen}>
+              <DialogContent className="max-w-[280px] p-6 flex flex-col gap-4 [&>button]:hidden">
+                <DialogTitle className="text-center font-semibold text-[18px]">
+                  {user ? user.email?.split("@")[0] : "Guest"}
+                </DialogTitle>
+                <DialogDescription className="text-center text-sm text-gray-500">
+                  {user ? user.email : "Browsing without an account"}
+                </DialogDescription>
+                <div className="flex flex-col gap-2 pt-2">
+                  <Button
+                    onClick={() => { setUserMenuOpen(false); handleSignOut(); }}
+                    className="w-full bg-brand-accent hover:bg-brand-accent/90 text-white rounded-[4px]"
+                  >
+                    Sign out
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="w-full rounded-[4px]"
+                  >
+                    Continue
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
 
             {/* Search and filters */}
             <div className="flex gap-2">
