@@ -179,74 +179,56 @@ export default function App() {
   }, [parkData, isGuest, dataLoading]);
 
   // ── Supabase upsert helper ────────────────────────────────────────────────
-  const upsertPark = useCallback(async (parkId: string, updates: Partial<ParkData>) => {
+  const upsertPark = useCallback(async (parkId: string, data: ParkData) => {
     if (!user) return;
-    const current = parkData.get(parkId);
-    await supabase.from("park_visits").upsert({
+    const { error } = await supabase.from("park_visits").upsert({
       user_id: user.id,
       park_id: parkId,
-      visited: updates.visited ?? current?.visited ?? false,
-      note: updates.note ?? current?.note ?? "",
-      visited_date: updates.visitedDate ?? current?.visitedDate ?? null,
-      photo_url: updates.photoUrl ?? current?.photoUrl ?? null,
+      visited: data.visited,
+      note: data.note,
+      visited_date: data.visitedDate ?? null,
+      photo_url: data.photoUrl || null,
       updated_at: new Date().toISOString(),
     }, { onConflict: "user_id,park_id" });
-  }, [user, parkData]);
+    if (error) console.error("Supabase upsert error:", error);
+  }, [user]);
 
   // ── Park data mutations ───────────────────────────────────────────────────
   const toggleVisited = useCallback((parkId: string) => {
-    setParkData((prev) => {
-      const next = new Map(prev);
-      const current = next.get(parkId);
-      if (current?.visited) {
-        next.delete(parkId);
-        if (user) {
-          supabase.from("park_visits").delete().match({ user_id: user.id, park_id: parkId });
-        }
-      } else {
-        const updated = { visited: true, note: current?.note ?? "", visitedDate: current?.visitedDate };
-        next.set(parkId, updated);
-        upsertPark(parkId, updated);
-      }
-      return next;
-    });
-  }, [user, upsertPark]);
+    const current = parkData.get(parkId);
+    if (current?.visited) {
+      setParkData((prev) => { const next = new Map(prev); next.delete(parkId); return next; });
+      if (user) supabase.from("park_visits").delete().match({ user_id: user.id, park_id: parkId });
+    } else {
+      const updated: ParkData = { visited: true, note: current?.note ?? "", visitedDate: current?.visitedDate };
+      setParkData((prev) => { const next = new Map(prev); next.set(parkId, updated); return next; });
+      upsertPark(parkId, updated);
+    }
+  }, [user, parkData, upsertPark]);
 
   const updateParkNote = useCallback((parkId: string, note: string) => {
-    setParkData((prev) => {
-      const next = new Map(prev);
-      const current = next.get(parkId);
-      if (current?.visited) {
-        next.set(parkId, { ...current, note });
-        upsertPark(parkId, { note });
-      }
-      return next;
-    });
-  }, [upsertPark]);
+    const current = parkData.get(parkId);
+    if (!current?.visited) return;
+    const updated = { ...current, note };
+    setParkData((prev) => { const next = new Map(prev); next.set(parkId, updated); return next; });
+    upsertPark(parkId, updated);
+  }, [parkData, upsertPark]);
 
   const updateParkDate = useCallback((parkId: string, date: string) => {
-    setParkData((prev) => {
-      const next = new Map(prev);
-      const current = next.get(parkId);
-      if (current?.visited) {
-        next.set(parkId, { ...current, visitedDate: date });
-        upsertPark(parkId, { visitedDate: date });
-      }
-      return next;
-    });
-  }, [upsertPark]);
+    const current = parkData.get(parkId);
+    if (!current?.visited) return;
+    const updated = { ...current, visitedDate: date };
+    setParkData((prev) => { const next = new Map(prev); next.set(parkId, updated); return next; });
+    upsertPark(parkId, updated);
+  }, [parkData, upsertPark]);
 
   const updateParkPhoto = useCallback((parkId: string, photoUrl: string) => {
-    setParkData((prev) => {
-      const next = new Map(prev);
-      const current = next.get(parkId);
-      if (current?.visited) {
-        next.set(parkId, { ...current, photoUrl });
-        upsertPark(parkId, { photoUrl });
-      }
-      return next;
-    });
-  }, [upsertPark]);
+    const current = parkData.get(parkId);
+    if (!current?.visited) return;
+    const updated = { ...current, photoUrl: photoUrl || undefined };
+    setParkData((prev) => { const next = new Map(prev); next.set(parkId, updated); return next; });
+    upsertPark(parkId, updated);
+  }, [parkData, upsertPark]);
 
   const handleSignOut = async () => {
     localStorage.removeItem(GUEST_KEY);
