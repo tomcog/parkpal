@@ -13,5 +13,6 @@ export type ParkVisitRow = {
   note: string;
   visited_date: string | null;
   photo_url: string | null;
+  header_photo_url: string | null;
   updated_at: string;
 };

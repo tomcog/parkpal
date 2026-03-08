@@ -184,7 +184,7 @@ export default function App() {
         // Load from Supabase
         const { data, error } = await supabase
           .from("park_visits")
-          .select("park_id, visited, note, visited_date, photo_url")
+          .select("park_id, visited, note, visited_date, photo_url, header_photo_url")
           .eq("user_id", user.id);
 
         if (error) {
@@ -192,15 +192,22 @@ export default function App() {
           setSaveError(`Failed to load your data: ${error.message}`);
         } else if (data) {
           const map = new Map<string, ParkData>();
+          const headerOverrides = new Map<string, string>();
           for (const row of data) {
-            map.set(row.park_id, {
-              visited: row.visited,
-              note: row.note ?? "",
-              visitedDate: row.visited_date ?? undefined,
-              photoUrl: row.photo_url ?? undefined,
-            });
+            if (row.visited) {
+              map.set(row.park_id, {
+                visited: row.visited,
+                note: row.note ?? "",
+                visitedDate: row.visited_date ?? undefined,
+                photoUrl: row.photo_url ?? undefined,
+              });
+            }
+            if (row.header_photo_url) {
+              headerOverrides.set(row.park_id, row.header_photo_url);
+            }
           }
           setParkData(map);
+          setHeaderImageOverrides(headerOverrides);
         }
       } else {
         // Guest: load from localStorage
@@ -285,9 +292,24 @@ export default function App() {
     upsertPark(parkId, updated);
   }, [parkData, upsertPark]);
 
+  const upsertHeaderImage = useCallback(async (parkId: string, url: string) => {
+    if (!user) return;
+    const { error } = await supabase.from("park_visits").upsert({
+      user_id: user.id,
+      park_id: parkId,
+      header_photo_url: url,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id,park_id" });
+    if (error) {
+      console.error("Header image upsert error:", error);
+      setSaveError(`Failed to save header image: ${error.message}`);
+    }
+  }, [user]);
+
   const updateHeaderImage = useCallback((parkId: string, url: string) => {
     setHeaderImageOverrides((prev) => { const next = new Map(prev); next.set(parkId, url); return next; });
-  }, []);
+    upsertHeaderImage(parkId, url);
+  }, [upsertHeaderImage]);
 
   // ── Persist header image overrides to localStorage ────────────────────────
   useEffect(() => {
