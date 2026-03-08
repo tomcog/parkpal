@@ -126,6 +126,9 @@ export default function NationalParkCard({
     setIsUploading(true);
 
     try {
+      // Delete previous header photo if it was a user upload (Supabase storage URL)
+      await deletePhoto(imageUrl);
+
       // Resize image
       const img = new Image();
       img.src = URL.createObjectURL(file);
