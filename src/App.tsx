@@ -322,24 +322,34 @@ export default function App() {
   const totalCount = nationalParks.length;
 
   return (
-    <div className="min-h-screen bg-gray-100 max-w-[1280px] mx-auto">
+    <div className="min-h-screen bg-gray-100">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-20">
-        <div className="px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-[1270px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col gap-4">
 
             {/* Logo + user icon */}
-            <div className="flex items-center justify-between">
-              <div className="flex-1" />
+            <div className="flex items-start justify-between">
               <div className="h-[64px] w-fit">
                 <NounNationalPark />
               </div>
-              <div className="flex-1 flex justify-end">
+              <div className="flex flex-col items-end gap-[10px]">
                 <button
                   onClick={() => setUserMenuOpen(true)}
                   className="p-1 text-gray-400 hover:text-brand-accent transition-colors"
                   aria-label="Account"
                 >
                   <CircleUser className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={handleFindNearest}
+                  disabled={locating}
+                  className="p-1 text-brand-accent hover:opacity-70 transition-opacity disabled:opacity-50"
+                  aria-label="Find nearest national park"
+                  title="Find nearest national park"
+                >
+                  {locating
+                    ? <Loader2 className="w-6 h-6 animate-spin" />
+                    : <LocateFixed className="w-6 h-6" />}
                 </button>
               </div>
             </div>
@@ -456,51 +466,36 @@ export default function App() {
             </div>
 
             {/* Stats */}
-            <div className="flex items-center gap-2">
-              <div className="flex-1 min-w-0">
-                {filter === "visited" ? (
-                  <div>
-                    <p className="leading-[normal] not-italic text-black">
-                      <span className="opacity-[0.5]">Showing {visitedCount} </span>
-                      <span className="text-brand-accent">visited</span>
-                      <span className="opacity-[0.5]"> of {totalCount} parks</span>
-                    </p>
-                    <Progress value={(visitedCount / totalCount) * 100} className="h-2 mt-2" indicatorClassName="bg-brand-accent" />
-                  </div>
-                ) : filter === "to-go" ? (
-                  <div>
-                    <p className="leading-[normal] not-italic text-black">
-                      <span className="opacity-[0.5]">Showing {totalCount - visitedCount} </span>
-                      <span className="text-black">to go</span>
-                      <span className="opacity-[0.5]"> of {totalCount} parks</span>
-                    </p>
-                    <Progress value={(visitedCount / totalCount) * 100} className="h-2 mt-2" indicatorClassName="bg-brand-accent" />
-                  </div>
-                ) : (
-                  <p className="leading-[normal] not-italic text-gray-500">
-                    {dataLoading ? "Loading..." : filteredParks.length === totalCount && !searchQuery
-                      ? <>Showing all {totalCount} national parks{sortOrder === "state" && <span className="text-brand-accent"> by state</span>}</>
-                      : <>Showing {filteredParks.length} of {totalCount} parks{sortOrder === "state" && <span className="text-brand-accent"> by state</span>}</>}
-                  </p>
-                )}
+            {filter === "visited" ? (
+              <div>
+                <p className="leading-[normal] not-italic text-black">
+                  <span className="opacity-[0.5]">Showing {visitedCount} </span>
+                  <span className="text-brand-accent">visited</span>
+                  <span className="opacity-[0.5]"> of {totalCount} parks</span>
+                </p>
+                <Progress value={(visitedCount / totalCount) * 100} className="h-2 mt-2" indicatorClassName="bg-brand-accent" />
               </div>
-              <button
-                onClick={handleFindNearest}
-                disabled={locating}
-                className="p-1 text-brand-accent hover:opacity-70 transition-opacity shrink-0 disabled:opacity-50"
-                aria-label="Find nearest national park"
-                title="Find nearest national park"
-              >
-                {locating
-                  ? <Loader2 className="w-6 h-6 animate-spin" />
-                  : <LocateFixed className="w-6 h-6" />}
-              </button>
-            </div>
+            ) : filter === "to-go" ? (
+              <div>
+                <p className="leading-[normal] not-italic text-black">
+                  <span className="opacity-[0.5]">Showing {totalCount - visitedCount} </span>
+                  <span className="text-black">to go</span>
+                  <span className="opacity-[0.5]"> of {totalCount} parks</span>
+                </p>
+                <Progress value={(visitedCount / totalCount) * 100} className="h-2 mt-2" indicatorClassName="bg-brand-accent" />
+              </div>
+            ) : (
+              <p className="leading-[normal] not-italic text-gray-500">
+                {dataLoading ? "Loading..." : filteredParks.length === totalCount && !searchQuery
+                  ? <>Showing all {totalCount} national parks{sortOrder === "state" && <span className="text-brand-accent"> by state</span>}</>
+                  : <>Showing {filteredParks.length} of {totalCount} parks{sortOrder === "state" && <span className="text-brand-accent"> by state</span>}</>}
+              </p>
+            )}
           </div>
         </div>
       </header>
 
-      <main className="px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-[1270px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredParks.map((park) => (
             <NationalParkCard
