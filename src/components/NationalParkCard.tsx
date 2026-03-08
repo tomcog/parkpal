@@ -1,4 +1,4 @@
-import { MapPin, X, Calendar, Camera, Loader2, SwitchCamera, RefreshCw } from "lucide-react";
+import { MapPin, X, Calendar, Camera, Loader2, SwitchCamera, RefreshCw, ImageUp } from "lucide-react";
 import { useState, useRef } from "react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle, DrawerTrigger } from "./ui/drawer";
@@ -213,14 +213,30 @@ export default function NationalParkCard({
             >
               <X className="w-5 h-5" />
             </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); setPhotoPickerOpen(true); }}
-              className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors z-10 opacity-50 hover:opacity-100"
-              aria-label="Change header photo"
-            >
-              <SwitchCamera className="w-5 h-5" />
-            </button>
+            <div className="absolute top-4 right-4 flex flex-col gap-4 z-10">
+              <button
+                onClick={(e) => { e.stopPropagation(); setPhotoPickerOpen(true); }}
+                className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors opacity-50 hover:opacity-100"
+                aria-label="Change header photo"
+              >
+                <SwitchCamera className="w-5 h-5" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!userId) { alert("Sign in to upload photos"); return; }
+                  fileInputRef.current?.click();
+                }}
+                disabled={isUploading}
+                className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors opacity-50 hover:opacity-100 disabled:opacity-30"
+                aria-label="Upload your photo"
+              >
+                {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImageUp className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
+
+          <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
 
           <div className="flex-1 overflow-y-auto p-6">
             <DrawerTitle className="sr-only">{name}</DrawerTitle>
@@ -281,7 +297,6 @@ export default function NationalParkCard({
                   </div>
 
                   <div>
-                    <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
                     {photoUrl ? (
                       <div className="flex items-center">
                         <Button
