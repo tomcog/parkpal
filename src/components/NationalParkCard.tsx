@@ -70,24 +70,37 @@ export default function NationalParkCard({
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
   const [pickerPhotos, setPickerPhotos] = useState<string[]>(thumbnailUrls);
   const [isFetchingPhotos, setIsFetchingPhotos] = useState(false);
-  const [photoFetchPage, setPhotoFetchPage] = useState(1);
+  const [photoPool, setPhotoPool] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const visitPhotoInputRef = useRef<HTMLInputElement>(null);
 
+  const pickRandom4 = (pool: string[]) => {
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, Math.min(4, shuffled.length));
+  };
+
   const handleRefreshPhotos = async () => {
     const accessKey = import.meta.env.VITE_UNSPLASH_ACCESS_KEY;
-    if (!accessKey) return;
+    if (!accessKey || isFetchingPhotos) return;
+
+    // If we already have a pool, just shuffle and pick 4 — no extra API call needed
+    if (photoPool.length > 0) {
+      setPickerPhotos(pickRandom4(photoPool));
+      return;
+    }
+
+    // First refresh: fetch a larger pool so subsequent clicks always have variety
     setIsFetchingPhotos(true);
-    const nextPage = photoFetchPage + 1;
     try {
       const res = await fetch(
-        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(imageQuery)}&per_page=4&page=${nextPage}&orientation=landscape&client_id=${accessKey}`
+        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(imageQuery)}&per_page=20&page=1&orientation=landscape&client_id=${accessKey}`
       );
       if (!res.ok) throw new Error();
       const data = await res.json();
-      if (data.results?.length) {
-        setPickerPhotos(data.results.map((r: { urls: { regular: string } }) => r.urls.regular));
-        setPhotoFetchPage(nextPage);
+      const urls: string[] = (data.results ?? []).map((r: { urls: { regular: string } }) => r.urls.regular);
+      if (urls.length > 0) {
+        setPhotoPool(urls);
+        setPickerPhotos(pickRandom4(urls));
       }
     } catch { /* ignore */ } finally {
       setIsFetchingPhotos(false);

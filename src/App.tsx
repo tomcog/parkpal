@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { User } from "@supabase/supabase-js";
 import NationalParkCard from "./components/NationalParkCard";
 import AuthScreen from "./components/AuthScreen";
@@ -8,8 +8,9 @@ import { Input } from "./components/ui/input";
 import { Progress } from "./components/ui/progress";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./components/ui/dialog";
 import { Drawer, DrawerContent } from "./components/ui/drawer";
-import { Search, X, MapPin, CircleUser, LocateFixed, Loader2, AlertCircle, ListStart, PencilLine, LogOut } from "lucide-react";
+import { Search, X, Map as MapIcon, CircleUser, LocateFixed, Loader2, AlertCircle, PencilLine, LogOut } from "lucide-react";
 import { supabase } from "./utils/supabase/client";
+import { ButtonStandard } from "./components/ButtonStandard";
 import NounNationalPark from "./imports/NounNationalPark19895091";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyDljWXxLD0ofXyh00bCYNtF1cW4YOXm48k";
@@ -111,6 +112,7 @@ export default function App() {
   const [parkData, setParkData] = useState<Map<string, ParkData>>(new Map());
   const [filter, setFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [dataLoading, setDataLoading] = useState(false);
   const [sortOrder, setSortOrder] = useState<SortType>("alphabetical");
   const [openParkId, setOpenParkId] = useState<string | null>(null);
@@ -319,23 +321,6 @@ export default function App() {
     localStorage.setItem("parkpal_header_images", JSON.stringify(Object.fromEntries(headerImageOverrides)));
   }, [headerImageOverrides]);
 
-  // ── Letter-key jump navigation ────────────────────────────────────────────
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (openParkId) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (!/^[a-zA-Z]$/.test(e.key)) return;
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable) return;
-
-      const letter = e.key.toLowerCase();
-      const match = filteredParks.find((p) => p.name.toLowerCase().startsWith(letter));
-      if (!match) return;
-      document.getElementById(`park-card-${match.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [filteredParks, openParkId]);
 
   useEffect(() => {
     if (userMenuOpen && user) {
@@ -584,38 +569,66 @@ export default function App() {
             <div className="flex gap-2">
               <div className="relative flex-1 min-w-0">
                 {searchQuery ? (
-                  <button onClick={() => setSearchQuery("")} className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 hover:text-gray-600 cursor-pointer" aria-label="Clear search">
-                    <X className="w-4 h-4" />
+                  <button onClick={() => setSearchQuery("")} className="absolute left-[10px] top-1/2 -translate-y-1/2 text-[#717182] hover:text-gray-600 cursor-pointer" aria-label="Clear search">
+                    <X className="w-6 h-6" />
                   </button>
                 ) : (
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-[10px] top-1/2 -translate-y-1/2 w-6 h-6 text-[#717182] pointer-events-none" />
                 )}
-                <Input
+                <input
+                  ref={searchInputRef}
+                  autoFocus
                   placeholder="Search parks"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "a") e.currentTarget.select(); }}
-                  className="pl-10 rounded-[4px]"
+                  className="w-full h-[44px] pl-[42px] pr-3 bg-[#f3f3f5] border border-transparent rounded-[4px] text-[16px] text-[#0a0a0a] placeholder:text-[#717182] focus:outline-none focus:border-brand-accent focus:bg-white transition-colors"
                 />
               </div>
-              <Button
-                variant="outline"
+              <ButtonStandard
                 onClick={() => setSortOrder(sortOrder === "alphabetical" ? "state" : "alphabetical")}
-                size="sm"
-                className={`px-3 h-9 rounded-[4px] flex-shrink-0 ${sortOrder === "state" ? "bg-brand-accent border-brand-accent hover:bg-brand-accent/90" : "bg-white hover:bg-gray-50"}`}
+                theme={sortOrder === "state" ? "green" : "white"}
+                icon={sortOrder === "state" ? (
+                  <svg viewBox="0 0 16.167 15.334" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-4 h-4">
+                    <path d="M15.3104 8.34473C15.6399 8.39267 15.9282 8.60289 16.0722 8.91016C16.2364 9.26141 16.1827 9.6767 15.9345 9.97461L13.1356 13.334H15.1669C15.7189 13.3343 16.1669 13.7819 16.1669 14.334C16.1667 14.8859 15.7188 15.3337 15.1669 15.334H10.9999C10.612 15.334 10.2593 15.109 10.0946 14.7578C9.93014 14.4065 9.98304 13.9914 10.2313 13.6934L13.0311 10.334H10.9999C10.4477 10.334 10.0001 9.88612 9.9999 9.33398C9.9999 8.7817 10.4476 8.33398 10.9999 8.33398H15.1669L15.3104 8.34473ZM4.3329 0C4.88508 0 5.33273 0.447865 5.3329 1V11.9189L6.95986 10.293C7.3504 9.9029 7.98354 9.90264 8.37392 10.293C8.76414 10.6834 8.76396 11.3165 8.37392 11.707L5.03994 15.04C5.01612 15.0639 4.99085 15.0861 4.96474 15.1074C4.92768 15.1378 4.88859 15.1643 4.84853 15.1885C4.7775 15.2314 4.70114 15.2657 4.62001 15.29C4.61061 15.2929 4.60116 15.2953 4.59169 15.2979C4.57004 15.3036 4.54847 15.3101 4.52626 15.3145C4.39735 15.3398 4.26447 15.3393 4.13564 15.3135C4.12344 15.311 4.11154 15.3076 4.09951 15.3047C4.07886 15.2998 4.05834 15.2944 4.03798 15.2881C4.02475 15.284 4.01191 15.279 3.99892 15.2744C3.98388 15.2691 3.96882 15.2639 3.954 15.2578C3.93004 15.248 3.90667 15.2372 3.88369 15.2256C3.87758 15.2225 3.87119 15.22 3.86513 15.2168C3.85391 15.2108 3.84289 15.2046 3.83193 15.1982C3.78624 15.1717 3.742 15.1418 3.70009 15.1074C3.6742 15.0862 3.6495 15.0637 3.62587 15.04L0.292865 11.707C-0.0976031 11.3165 -0.0976404 10.6835 0.292865 10.293C0.683393 9.90273 1.31649 9.90259 1.70693 10.293L3.3329 11.9189V1C3.33308 0.447902 3.78078 6.05239e-05 4.3329 0ZM13.0829 0C13.9006 5.66018e-05 14.6854 0.325168 15.2636 0.90332C15.8416 1.48139 16.1667 2.26557 16.1669 3.08301V6C16.1669 6.5521 15.7189 6.99971 15.1669 7C14.6146 7 14.1669 6.55228 14.1669 6V5.33398H11.9999V6C11.9999 6.55221 11.5521 6.99988 10.9999 7C10.4476 7 9.9999 6.55228 9.9999 6V3.08301C10.0001 2.26549 10.3251 1.4814 10.9032 0.90332C11.4814 0.325328 12.2654 8.61697e-05 13.0829 0ZM13.0829 2C12.7958 2.00009 12.5203 2.11446 12.3173 2.31738C12.1143 2.52039 12.0001 2.79592 11.9999 3.08301V3.33398H14.1669V3.08301C14.1667 2.796 14.0524 2.52038 13.8495 2.31738C13.6464 2.1143 13.3701 2.00006 13.0829 2Z" fill="currentColor"/>
+                  </svg>
+                ) : (
+                  <MapIcon className="w-5 h-5" />
+                )}
+                className="w-[44px] px-0 flex-shrink-0"
                 title={sortOrder === "alphabetical" ? "Sort by State" : "Sort A-Z"}
-              >
-                <MapPin className={`w-4 h-4 ${sortOrder === "state" ? "text-white" : "text-black"}`} />
-              </Button>
-              <Button
-                variant="outline"
+              />
+              <ButtonStandard
                 onClick={() => { if (filter === "all") setFilter("visited"); else if (filter === "visited") setFilter("to-go"); else setFilter("all"); }}
-                size="sm"
-                className={`rounded-[4px] h-9 flex-shrink-0 w-[94px] gap-[6px] ${filter === "visited" ? "bg-brand-accent text-white border-brand-accent hover:bg-brand-accent/90 hover:text-white" : filter === "to-go" ? "bg-black text-white border-black hover:bg-gray-800 hover:text-white" : "hover:bg-white"}`}
+                theme="white"
+                icon={
+                  filter === "all" ? (
+                    <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none">
+                      <rect x="8" y="3" width="10.5" height="2" rx="1" fill="#99A1AF"/>
+                      <rect x="8" y="9" width="10.5" height="2" rx="1" fill="#99A1AF"/>
+                      <rect x="8" y="15" width="10.5" height="2" rx="1" fill="#99A1AF"/>
+                      <path d="M1.5 2L4.5 4L1.5 6" stroke="#30BF17" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  ) : filter === "visited" ? (
+                    <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none">
+                      <rect x="8" y="3" width="10.5" height="2" rx="1" fill="#99A1AF"/>
+                      <rect x="8" y="9" width="10.5" height="2" rx="1" fill="#99A1AF"/>
+                      <rect x="8" y="15" width="10.5" height="2" rx="1" fill="#99A1AF"/>
+                      <path d="M1.5 8L4.5 10L1.5 12" stroke="#30BF17" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none">
+                      <rect x="8" y="3" width="10.5" height="2" rx="1" fill="#99A1AF"/>
+                      <rect x="8" y="9" width="10.5" height="2" rx="1" fill="#99A1AF"/>
+                      <rect x="8" y="15" width="10.5" height="2" rx="1" fill="#99A1AF"/>
+                      <path d="M1.5 14L4.5 16L1.5 18" stroke="#30BF17" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )
+                }
+                className="w-[110px] flex-shrink-0 justify-start"
               >
-                <ListStart className="w-4 h-4 flex-shrink-0" />
-                {filter === "all" ? "All" : filter === "visited" ? "Visited" : "To go"}
-              </Button>
+                {filter === "all" ? "All Parks" : filter === "visited" ? "Visited" : "To go"}
+              </ButtonStandard>
             </div>
 
             {/* Stats */}
