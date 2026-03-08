@@ -72,6 +72,7 @@ export default function NationalParkCard({
   const [isFetchingPhotos, setIsFetchingPhotos] = useState(false);
   const [photoFetchPage, setPhotoFetchPage] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const visitPhotoInputRef = useRef<HTMLInputElement>(null);
 
   const handleRefreshPhotos = async () => {
     const accessKey = import.meta.env.VITE_UNSPLASH_ACCESS_KEY;
@@ -170,6 +171,65 @@ export default function NationalParkCard({
     }
   };
 
+  const handleVisitPhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    if (!userId) {
+      alert("Sign in to upload photos");
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      if (photoUrl) await deletePhoto(photoUrl);
+
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("Failed to load image"));
+      });
+
+      const canvas = document.createElement("canvas");
+      const MAX_WIDTH = 800;
+      let width = img.width;
+      let height = img.height;
+      if (width > MAX_WIDTH) {
+        height *= MAX_WIDTH / width;
+        width = MAX_WIDTH;
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas not supported");
+      ctx.drawImage(img, 0, 0, width, height);
+
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", 0.8)
+      );
+      if (!blob) throw new Error("Failed to process image");
+
+      const path = `${userId}/${id}/visit-${Date.now()}.jpg`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("park-photos")
+        .upload(path, blob, { contentType: "image/jpeg", upsert: false });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from("park-photos").getPublicUrl(path);
+      onUpdatePhoto(id, data.publicUrl);
+    } catch (err) {
+      console.error("Visit photo upload error:", err);
+      alert(`Failed to upload photo: ${err instanceof Error ? err.message : "Unknown error"}. Please try again.`);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   return (
     <>
       <Drawer open={isOpen} onOpenChange={onOpenChange}>
@@ -240,6 +300,7 @@ export default function NationalParkCard({
           </div>
 
           <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
+          <input type="file" ref={visitPhotoInputRef} onChange={handleVisitPhotoUpload} accept="image/*" className="hidden" />
 
           <div className="flex-1 overflow-y-auto p-6">
             <DrawerTitle className="sr-only">{name}</DrawerTitle>
@@ -312,7 +373,7 @@ export default function NationalParkCard({
                         <Button
                           variant="outline" size="sm"
                           className="h-8 gap-2 text-xs text-gray-500 hover:text-gray-700 rounded-l-none border-l-0 pl-2"
-                          onClick={() => fileInputRef.current?.click()} disabled={isUploading}
+                          onClick={() => visitPhotoInputRef.current?.click()} disabled={isUploading}
                         >
                           {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
                           Change Photo
@@ -322,7 +383,7 @@ export default function NationalParkCard({
                       <Button
                         variant="outline" size="sm"
                         className="h-8 gap-2 text-xs text-gray-500 hover:text-gray-700"
-                        onClick={() => userId ? fileInputRef.current?.click() : alert("Sign in to upload photos")}
+                        onClick={() => userId ? visitPhotoInputRef.current?.click() : alert("Sign in to upload photos")}
                         disabled={isUploading}
                       >
                         {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
