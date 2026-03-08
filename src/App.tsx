@@ -582,7 +582,7 @@ export default function App() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "a") e.currentTarget.select(); }}
-                  className="w-full h-[44px] pl-[42px] pr-3 bg-[#f3f3f5] border border-transparent rounded-[4px] text-[16px] text-[#0a0a0a] placeholder:text-[#717182] focus:outline-none focus:border-brand-accent focus:bg-white transition-colors"
+                  className="w-full h-[44px] pl-[42px] pr-3 bg-[#f3f3f5] border border-transparent rounded-[4px] text-[16px] text-[#0a0a0a] placeholder:text-[#99A1AF] focus:outline-none focus:border-brand-accent focus:bg-white transition-colors"
                 />
               </div>
               <ButtonStandard
@@ -634,28 +634,31 @@ export default function App() {
             {/* Stats */}
             {filter === "visited" ? (
               <div>
-                <p className="leading-[normal] not-italic text-black">
-                  <span className="opacity-[0.5]">Showing {visitedCount} </span>
+                <p className="leading-[normal] not-italic text-[#99A1AF]">
+                  <span>Showing {visitedCount} </span>
                   <span className="text-brand-accent">visited</span>
-                  <span className="opacity-[0.5]"> of {totalCount} parks</span>
+                  <span> of {totalCount} parks</span>
                 </p>
                 <Progress value={(visitedCount / totalCount) * 100} className="h-2 mt-2" indicatorClassName="bg-brand-accent" />
               </div>
             ) : filter === "to-go" ? (
               <div>
-                <p className="leading-[normal] not-italic text-black">
-                  <span className="opacity-[0.5]">Showing {totalCount - visitedCount} </span>
-                  <span className="text-black">to go</span>
-                  <span className="opacity-[0.5]"> of {totalCount} parks</span>
+                <p className="leading-[normal] not-italic text-[#99A1AF]">
+                  <span>Showing {totalCount - visitedCount} </span>
+                  <span className="text-brand-accent">to go</span>
+                  <span> of {totalCount} parks</span>
                 </p>
                 <Progress value={(visitedCount / totalCount) * 100} className="h-2 mt-2" indicatorClassName="bg-brand-accent" />
               </div>
             ) : (
-              <p className="leading-[normal] not-italic text-gray-500">
-                {dataLoading ? "Loading..." : filteredParks.length === totalCount && !searchQuery
-                  ? <>Showing all {totalCount} national parks{sortOrder === "state" && <span className="text-brand-accent"> by state</span>}</>
-                  : <>Showing {filteredParks.length} of {totalCount} parks{sortOrder === "state" && <span className="text-brand-accent"> by state</span>}</>}
-              </p>
+              <div>
+                <p className="leading-[normal] not-italic text-[#99A1AF]">
+                  {dataLoading ? "Loading..." : filteredParks.length === totalCount && !searchQuery
+                    ? <>Showing <span className="text-brand-accent">all</span> {totalCount} national parks{sortOrder === "state" && <span className="text-brand-accent"> by state</span>}</>
+                    : <>Showing {filteredParks.length} of {totalCount} parks{sortOrder === "state" && <span className="text-brand-accent"> by state</span>}</>}
+                </p>
+                <Progress value={(visitedCount / totalCount) * 100} className="h-2 mt-2" indicatorClassName="bg-brand-accent" />
+              </div>
             )}
           </div>
         </div>
