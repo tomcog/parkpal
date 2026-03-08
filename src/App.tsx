@@ -7,7 +7,7 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Progress } from "./components/ui/progress";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./components/ui/dialog";
-import { Search, X, MapPin, CircleUser, LocateFixed, Loader2 } from "lucide-react";
+import { Search, X, MapPin, CircleUser, LocateFixed, Loader2, AlertCircle } from "lucide-react";
 import { supabase } from "./utils/supabase/client";
 import NounNationalPark from "./imports/NounNationalPark19895091";
 
@@ -117,6 +117,7 @@ export default function App() {
   const [locating, setLocating] = useState(false);
   const [nearestPark, setNearestPark] = useState<{ park: (typeof nationalParks)[0]; distanceMiles: number } | null>(null);
   const [nearestDialogOpen, setNearestDialogOpen] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [headerImageOverrides, setHeaderImageOverrides] = useState<Map<string, string>>(() => {
     try {
       const stored = localStorage.getItem("parkpal_header_images");
@@ -167,7 +168,10 @@ export default function App() {
           .select("park_id, visited, note, visited_date, photo_url")
           .eq("user_id", user.id);
 
-        if (!error && data) {
+        if (error) {
+          console.error("Supabase load error:", error);
+          setSaveError(`Failed to load your data: ${error.message}`);
+        } else if (data) {
           const map = new Map<string, ParkData>();
           for (const row of data) {
             map.set(row.park_id, {
@@ -213,15 +217,24 @@ export default function App() {
       photo_url: data.photoUrl || null,
       updated_at: new Date().toISOString(),
     }, { onConflict: "user_id,park_id" });
-    if (error) console.error("Supabase upsert error:", error);
+    if (error) {
+      console.error("Supabase upsert error:", error);
+      setSaveError(`Failed to save: ${error.message}`);
+    }
   }, [user]);
 
   // ── Park data mutations ───────────────────────────────────────────────────
-  const toggleVisited = useCallback((parkId: string) => {
+  const toggleVisited = useCallback(async (parkId: string) => {
     const current = parkData.get(parkId);
     if (current?.visited) {
       setParkData((prev) => { const next = new Map(prev); next.delete(parkId); return next; });
-      if (user) supabase.from("park_visits").delete().match({ user_id: user.id, park_id: parkId });
+      if (user) {
+        const { error } = await supabase.from("park_visits").delete().match({ user_id: user.id, park_id: parkId });
+        if (error) {
+          console.error("Supabase delete error:", error);
+          setSaveError(`Failed to save: ${error.message}`);
+        }
+      }
     } else {
       const updated: ParkData = { visited: true, note: current?.note ?? "", visitedDate: current?.visitedDate };
       setParkData((prev) => { const next = new Map(prev); next.set(parkId, updated); return next; });
@@ -509,6 +522,25 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {saveError && (
+        <div className="bg-red-50 border-b border-red-200 px-4 py-3">
+          <div className="max-w-[1270px] mx-auto flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-red-800">Your data could not be saved</p>
+              <p className="text-xs text-red-600 mt-0.5 font-mono break-all">{saveError}</p>
+            </div>
+            <button
+              onClick={() => setSaveError(null)}
+              className="flex-shrink-0 text-red-400 hover:text-red-600 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       <main className="max-w-[1270px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
