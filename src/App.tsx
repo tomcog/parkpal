@@ -7,7 +7,7 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Progress } from "./components/ui/progress";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./components/ui/dialog";
-import { Search, X, MapPin, CircleUser, LocateFixed, Loader2, AlertCircle } from "lucide-react";
+import { Search, X, MapPin, CircleUser, LocateFixed, Loader2, AlertCircle, ListStart } from "lucide-react";
 import { supabase } from "./utils/supabase/client";
 import NounNationalPark from "./imports/NounNationalPark19895091";
 
@@ -507,8 +507,9 @@ export default function App() {
                 variant="outline"
                 onClick={() => { if (filter === "all") setFilter("visited"); else if (filter === "visited") setFilter("to-go"); else setFilter("all"); }}
                 size="sm"
-                className={`rounded-[4px] h-9 flex-shrink-0 w-[80px] ${filter === "visited" ? "bg-brand-accent text-white border-brand-accent hover:bg-brand-accent/90 hover:text-white" : filter === "to-go" ? "bg-black text-white border-black hover:bg-gray-800 hover:text-white" : "hover:bg-white"}`}
+                className={`rounded-[4px] h-9 flex-shrink-0 w-[94px] gap-[6px] ${filter === "visited" ? "bg-brand-accent text-white border-brand-accent hover:bg-brand-accent/90 hover:text-white" : filter === "to-go" ? "bg-black text-white border-black hover:bg-gray-800 hover:text-white" : "hover:bg-white"}`}
               >
+                <ListStart className="w-4 h-4 flex-shrink-0" />
                 {filter === "all" ? "All" : filter === "visited" ? "Visited" : "To go"}
               </Button>
             </div>

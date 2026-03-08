@@ -122,17 +122,9 @@ export default function NationalParkCard({
       return;
     }
 
-    if (!isVisited) {
-      alert("Mark this park as visited before uploading a photo.");
-      return;
-    }
-
     setIsUploading(true);
 
     try {
-      // Delete old photo if exists
-      if (photoUrl) await deletePhoto(photoUrl);
-
       // Resize image
       const img = new Image();
       img.src = URL.createObjectURL(file);
@@ -142,7 +134,7 @@ export default function NationalParkCard({
       });
 
       const canvas = document.createElement("canvas");
-      const MAX_WIDTH = 800;
+      const MAX_WIDTH = 1200;
       let width = img.width;
       let height = img.height;
       if (width > MAX_WIDTH) {
@@ -156,11 +148,11 @@ export default function NationalParkCard({
       ctx.drawImage(img, 0, 0, width, height);
 
       const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, "image/jpeg", 0.8)
+        canvas.toBlob(resolve, "image/jpeg", 0.85)
       );
       if (!blob) throw new Error("Failed to process image");
 
-      const path = `${userId}/${id}/${Date.now()}.jpg`;
+      const path = `${userId}/${id}/header-${Date.now()}.jpg`;
 
       const { error: uploadError } = await supabase.storage
         .from("park-photos")
@@ -169,7 +161,7 @@ export default function NationalParkCard({
       if (uploadError) throw uploadError;
 
       const { data } = supabase.storage.from("park-photos").getPublicUrl(path);
-      onUpdatePhoto(id, data.publicUrl);
+      onUpdateHeaderImage(id, data.publicUrl);
     } catch (err) {
       console.error("Upload error:", err);
       alert(`Failed to upload photo: ${err instanceof Error ? err.message : "Unknown error"}. Please try again.`);
