@@ -274,7 +274,7 @@ export default function NationalParkCard({
             <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1 bg-white/50 rounded-full" />
             <button
               onClick={(e) => { e.stopPropagation(); onOpenChange(false); }}
-              className="absolute top-4 left-4 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors z-10 opacity-50"
+              className="absolute top-4 left-4 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors z-10 opacity-50 hover:opacity-100"
               aria-label="Close"
             >
               <X className="w-5 h-5" />
@@ -469,8 +469,20 @@ export default function NationalParkCard({
             </div>
 
             <div className="mb-6">
+              {import.meta.env.VITE_UNSPLASH_ACCESS_KEY && (
+                <div className="flex justify-end mb-2">
+                  <button
+                    onClick={handleRefreshPhotos}
+                    disabled={isFetchingPhotos}
+                    className="text-xs text-gray-400 hover:text-brand-accent transition-colors disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isFetchingPhotos ? "animate-spin" : ""}`} />
+                    {isFetchingPhotos ? "Loading…" : "Refresh photos"}
+                  </button>
+                </div>
+              )}
               <div className="flex flex-col gap-4">
-                {thumbnailUrls.map((url, index) => (
+                {pickerPhotos.map((url, index) => (
                   <div key={index} className="w-full overflow-hidden rounded-md">
                     <img src={url} alt={`${name} photo ${index + 1}`} className="object-cover w-full h-auto" />
                   </div>

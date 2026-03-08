@@ -7,7 +7,8 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Progress } from "./components/ui/progress";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./components/ui/dialog";
-import { Search, X, MapPin, CircleUser, LocateFixed, Loader2, AlertCircle, ListStart } from "lucide-react";
+import { Drawer, DrawerContent } from "./components/ui/drawer";
+import { Search, X, MapPin, CircleUser, LocateFixed, Loader2, AlertCircle, ListStart, PencilLine, LogOut } from "lucide-react";
 import { supabase } from "./utils/supabase/client";
 import NounNationalPark from "./imports/NounNationalPark19895091";
 
@@ -114,6 +115,8 @@ export default function App() {
   const [sortOrder, setSortOrder] = useState<SortType>("alphabetical");
   const [openParkId, setOpenParkId] = useState<string | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [editingUsername, setEditingUsername] = useState(false);
+  const [usernameValue, setUsernameValue] = useState("");
   const [locating, setLocating] = useState(false);
   const [nearestPark, setNearestPark] = useState<{ park: (typeof nationalParks)[0]; distanceMiles: number } | null>(null);
   const [nearestDialogOpen, setNearestDialogOpen] = useState(false);
@@ -334,6 +337,19 @@ export default function App() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [filteredParks, openParkId]);
 
+  useEffect(() => {
+    if (userMenuOpen && user) {
+      setUsernameValue(user.user_metadata?.username || user.email?.split("@")[0] || "");
+      setEditingUsername(false);
+    }
+  }, [userMenuOpen, user]);
+
+  const handleSaveUsername = async () => {
+    setEditingUsername(false);
+    if (!user || !usernameValue.trim()) return;
+    await supabase.auth.updateUser({ data: { username: usernameValue.trim() } });
+  };
+
   const handleSignOut = async () => {
     localStorage.removeItem(GUEST_KEY);
     setIsGuest(false);
@@ -352,7 +368,10 @@ export default function App() {
   };
 
   const handleFindNearest = () => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      alert("Your browser doesn't support location access.");
+      return;
+    }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       ({ coords: { latitude, longitude } }) => {
@@ -366,8 +385,17 @@ export default function App() {
         setNearestDialogOpen(true);
         setLocating(false);
       },
-      () => setLocating(false),
-      { timeout: 10000 },
+      (err) => {
+        setLocating(false);
+        if (err.code === err.PERMISSION_DENIED) {
+          alert("Location access was denied. Please allow location access in your browser settings and try again.");
+        } else if (err.code === err.TIMEOUT) {
+          alert("Location request timed out. Please try again.");
+        } else {
+          alert("Unable to determine your location. Please try again.");
+        }
+      },
+      { timeout: 10000, enableHighAccuracy: false },
     );
   };
 
@@ -402,54 +430,107 @@ export default function App() {
               <div className="h-[64px] w-fit">
                 <NounNationalPark />
               </div>
-              <div className="flex flex-col items-end gap-[10px]">
-                <button
-                  onClick={() => setUserMenuOpen(true)}
-                  className="p-1 text-gray-400 hover:text-brand-accent transition-colors"
-                  aria-label="Account"
-                >
-                  <CircleUser className="w-6 h-6" />
-                </button>
-                <button
-                  onClick={handleFindNearest}
-                  disabled={locating}
-                  className="p-1 text-brand-accent hover:opacity-70 transition-opacity disabled:opacity-50"
-                  aria-label="Find nearest national park"
-                  title="Find nearest national park"
-                >
-                  {locating
-                    ? <Loader2 className="w-6 h-6 animate-spin" />
-                    : <LocateFixed className="w-6 h-6" />}
-                </button>
-              </div>
+              <button
+                onClick={() => setUserMenuOpen(true)}
+                className="p-1 text-gray-400 hover:text-brand-accent transition-colors"
+                aria-label="Account"
+              >
+                <CircleUser className="w-6 h-6" />
+              </button>
             </div>
 
-            {/* User menu dialog */}
-            <Dialog open={userMenuOpen} onOpenChange={setUserMenuOpen}>
-              <DialogContent className="max-w-[280px] p-6 flex flex-col gap-4 [&>button]:hidden">
-                <DialogTitle className="text-center font-semibold text-[18px]">
-                  {user ? user.email?.split("@")[0] : "Guest"}
-                </DialogTitle>
-                <DialogDescription className="text-center text-sm text-gray-500">
-                  {user ? user.email : "Browsing without an account"}
-                </DialogDescription>
-                <div className="flex flex-col gap-2 pt-2">
-                  <Button
-                    onClick={() => { setUserMenuOpen(false); handleSignOut(); }}
-                    className="w-full bg-brand-accent hover:bg-brand-accent/90 text-white rounded-[4px]"
+            {/* User profile page */}
+            <Drawer open={userMenuOpen} onOpenChange={setUserMenuOpen} modal={false}>
+              <DrawerContent className="!h-[100vh] !max-h-[100vh] !mt-0 !rounded-none !border-none !p-0 [&>div:first-child]:hidden">
+                <div className="flex flex-col gap-8 items-center p-8 h-full overflow-y-auto bg-white">
+                  <p className="sr-only">User Profile</p>
+
+                  {/* Close button */}
+                  <div className="flex items-start w-full">
+                    <button
+                      onClick={() => setUserMenuOpen(false)}
+                      className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors opacity-50 hover:opacity-100"
+                      aria-label="Close"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Logo */}
+                  <div className="h-[64px] w-fit">
+                    <NounNationalPark />
+                  </div>
+
+                  {/* User info */}
+                  <div className="flex flex-col gap-4 items-center w-full">
+                    {user ? (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setEditingUsername(true)}
+                            className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+                            aria-label="Edit username"
+                          >
+                            <PencilLine className="w-5 h-5" />
+                          </button>
+                          {editingUsername ? (
+                            <input
+                              value={usernameValue}
+                              onChange={(e) => setUsernameValue(e.target.value)}
+                              onBlur={handleSaveUsername}
+                              onKeyDown={(e) => { if (e.key === "Enter") handleSaveUsername(); if (e.key === "Escape") setEditingUsername(false); }}
+                              autoFocus
+                              className="text-2xl font-semibold text-[#313730] tracking-tight text-center border-b-2 border-brand-accent focus:outline-none bg-transparent w-48"
+                            />
+                          ) : (
+                            <button
+                              onClick={() => setEditingUsername(true)}
+                              className="text-2xl font-semibold text-[#313730] tracking-tight hover:opacity-70 transition-opacity"
+                            >
+                              {user.user_metadata?.username || user.email?.split("@")[0]}
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-base font-medium text-gray-500 text-center">{user.email}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-2xl font-semibold text-[#313730] tracking-tight">Guest</p>
+                        <p className="text-base font-medium text-gray-500 text-center">Browsing without an account</p>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Show nearest park */}
+                  <button
+                    onClick={handleFindNearest}
+                    disabled={locating}
+                    className="flex items-center justify-center gap-2 text-brand-accent font-semibold text-xl tracking-tight hover:opacity-70 transition-opacity disabled:opacity-50"
                   >
-                    Sign out
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="w-full rounded-[4px]"
-                  >
-                    Continue
-                  </Button>
+                    {locating ? <Loader2 className="w-6 h-6 animate-spin" /> : <LocateFixed className="w-6 h-6" />}
+                    Show nearest park
+                  </button>
+
+                  {/* Action buttons */}
+                  <div className="flex flex-col gap-4 w-full">
+                    <Button
+                      onClick={() => setUserMenuOpen(false)}
+                      className="w-full h-11 bg-brand-accent hover:bg-brand-accent/90 text-white rounded-[4px] text-lg font-semibold"
+                    >
+                      {user ? "Stay signed in" : "Continue as guest"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => { setUserMenuOpen(false); handleSignOut(); }}
+                      className="w-full h-11 rounded-[4px] text-lg font-semibold border-gray-400 gap-2"
+                    >
+                      <LogOut className="w-5 h-5 text-gray-500" />
+                      Sign out
+                    </Button>
+                  </div>
                 </div>
-              </DialogContent>
-            </Dialog>
+              </DrawerContent>
+            </Drawer>
 
             {/* Nearest park result dialog */}
             <Dialog open={nearestDialogOpen} onOpenChange={setNearestDialogOpen}>
@@ -478,6 +559,7 @@ export default function App() {
                             setFilter("all");
                             setSearchQuery("");
                             setNearestDialogOpen(false);
+                            setUserMenuOpen(false);
                             setOpenParkId(nearestPark.park.id);
                           }}
                           className="flex-1 bg-brand-accent hover:bg-brand-accent/90 text-white rounded-[4px]"
