@@ -125,6 +125,25 @@ export default function App() {
     } catch { return new Map(); }
   });
 
+  // ── Filtered/sorted park list ─────────────────────────────────────────────
+  const filteredParks = nationalParks
+    .filter((park) => {
+      const isVisited = parkData.get(park.id)?.visited || false;
+      if (filter === "visited" && !isVisited) return false;
+      if (filter === "to-go" && isVisited) return false;
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const text = [park.name, park.state, park.description, ...park.facts, ...park.trivia].join(" ").toLowerCase();
+        return text.includes(query);
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortOrder === "alphabetical") return a.name.localeCompare(b.name);
+      const sc = a.state.localeCompare(b.state);
+      return sc !== 0 ? sc : a.name.localeCompare(b.name);
+    });
+
   // ── Auth listener ─────────────────────────────────────────────────────────
   useEffect(() => {
     // Check for existing session
@@ -275,6 +294,24 @@ export default function App() {
     localStorage.setItem("parkpal_header_images", JSON.stringify(Object.fromEntries(headerImageOverrides)));
   }, [headerImageOverrides]);
 
+  // ── Letter-key jump navigation ────────────────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (openParkId) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!/^[a-zA-Z]$/.test(e.key)) return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable) return;
+
+      const letter = e.key.toLowerCase();
+      const match = filteredParks.find((p) => p.name.toLowerCase().startsWith(letter));
+      if (!match) return;
+      document.getElementById(`park-card-${match.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [filteredParks, openParkId]);
+
   const handleSignOut = async () => {
     localStorage.removeItem(GUEST_KEY);
     setIsGuest(false);
@@ -328,23 +365,6 @@ export default function App() {
   }
 
   // ── Main app ──────────────────────────────────────────────────────────────
-  const filteredParks = nationalParks
-    .filter((park) => {
-      const isVisited = parkData.get(park.id)?.visited || false;
-      if (filter === "visited" && !isVisited) return false;
-      if (filter === "to-go" && isVisited) return false;
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const text = [park.name, park.state, park.description, ...park.facts, ...park.trivia].join(" ").toLowerCase();
-        return text.includes(query);
-      }
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortOrder === "alphabetical") return a.name.localeCompare(b.name);
-      const sc = a.state.localeCompare(b.state);
-      return sc !== 0 ? sc : a.name.localeCompare(b.name);
-    });
 
   const visitedCount = Array.from(parkData.values()).filter(d => d.visited).length;
   const totalCount = nationalParks.length;
@@ -545,30 +565,31 @@ export default function App() {
       <main className="max-w-[1270px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredParks.map((park) => (
-            <NationalParkCard
-              key={park.id}
-              id={park.id}
-              name={park.name}
-              state={park.state}
-              established={park.established}
-              description={park.description}
-              imageUrl={headerImageOverrides.get(park.id) ?? parkImages[park.id]}
-              imageQuery={park.imageQuery}
-              isVisited={parkData.get(park.id)?.visited || false}
-              note={parkData.get(park.id)?.note || ""}
-              visitedDate={parkData.get(park.id)?.visitedDate}
-              photoUrl={parkData.get(park.id)?.photoUrl}
-              userId={user?.id ?? null}
-              onToggleVisited={toggleVisited}
-              onUpdateNote={updateParkNote}
-              onUpdateDate={updateParkDate}
-              onUpdatePhoto={updateParkPhoto}
-              onUpdateHeaderImage={updateHeaderImage}
-              facts={park.facts}
-              trivia={park.trivia}
-              isOpen={openParkId === park.id}
-              onOpenChange={(open) => setOpenParkId(open ? park.id : null)}
-            />
+            <div key={park.id} id={`park-card-${park.id}`}>
+              <NationalParkCard
+                id={park.id}
+                name={park.name}
+                state={park.state}
+                established={park.established}
+                description={park.description}
+                imageUrl={headerImageOverrides.get(park.id) ?? parkImages[park.id]}
+                imageQuery={park.imageQuery}
+                isVisited={parkData.get(park.id)?.visited || false}
+                note={parkData.get(park.id)?.note || ""}
+                visitedDate={parkData.get(park.id)?.visitedDate}
+                photoUrl={parkData.get(park.id)?.photoUrl}
+                userId={user?.id ?? null}
+                onToggleVisited={toggleVisited}
+                onUpdateNote={updateParkNote}
+                onUpdateDate={updateParkDate}
+                onUpdatePhoto={updateParkPhoto}
+                onUpdateHeaderImage={updateHeaderImage}
+                facts={park.facts}
+                trivia={park.trivia}
+                isOpen={openParkId === park.id}
+                onOpenChange={(open) => setOpenParkId(open ? park.id : null)}
+              />
+            </div>
           ))}
         </div>
         {filteredParks.length === 0 && (

@@ -113,10 +113,17 @@ export default function NationalParkCard({
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    // Reset input so the same file can be re-selected
+    event.target.value = "";
     if (!file) return;
 
     if (!userId) {
       alert("Sign in to upload photos");
+      return;
+    }
+
+    if (!isVisited) {
+      alert("Mark this park as visited before uploading a photo.");
       return;
     }
 
@@ -129,7 +136,10 @@ export default function NationalParkCard({
       // Resize image
       const img = new Image();
       img.src = URL.createObjectURL(file);
-      await new Promise((resolve) => (img.onload = resolve));
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("Failed to load image"));
+      });
 
       const canvas = document.createElement("canvas");
       const MAX_WIDTH = 800;
@@ -141,15 +151,16 @@ export default function NationalParkCard({
       }
       canvas.width = width;
       canvas.height = height;
-      canvas.getContext("2d")?.drawImage(img, 0, 0, width, height);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas not supported");
+      ctx.drawImage(img, 0, 0, width, height);
 
       const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, "image/jpeg", 0.8)
       );
       if (!blob) throw new Error("Failed to process image");
 
-      const ext = "jpg";
-      const path = `${userId}/${id}/${Date.now()}.${ext}`;
+      const path = `${userId}/${id}/${Date.now()}.jpg`;
 
       const { error: uploadError } = await supabase.storage
         .from("park-photos")
@@ -161,7 +172,7 @@ export default function NationalParkCard({
       onUpdatePhoto(id, data.publicUrl);
     } catch (err) {
       console.error("Upload error:", err);
-      alert("Failed to upload photo. Please try again.");
+      alert(`Failed to upload photo: ${err instanceof Error ? err.message : "Unknown error"}. Please try again.`);
     } finally {
       setIsUploading(false);
     }
