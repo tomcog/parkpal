@@ -117,6 +117,12 @@ export default function App() {
   const [locating, setLocating] = useState(false);
   const [nearestPark, setNearestPark] = useState<{ park: (typeof nationalParks)[0]; distanceMiles: number } | null>(null);
   const [nearestDialogOpen, setNearestDialogOpen] = useState(false);
+  const [headerImageOverrides, setHeaderImageOverrides] = useState<Map<string, string>>(() => {
+    try {
+      const stored = localStorage.getItem("parkpal_header_images");
+      return stored ? new Map(Object.entries(JSON.parse(stored))) : new Map();
+    } catch { return new Map(); }
+  });
 
   // ── Auth listener ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -246,6 +252,15 @@ export default function App() {
     setParkData((prev) => { const next = new Map(prev); next.set(parkId, updated); return next; });
     upsertPark(parkId, updated);
   }, [parkData, upsertPark]);
+
+  const updateHeaderImage = useCallback((parkId: string, url: string) => {
+    setHeaderImageOverrides((prev) => { const next = new Map(prev); next.set(parkId, url); return next; });
+  }, []);
+
+  // ── Persist header image overrides to localStorage ────────────────────────
+  useEffect(() => {
+    localStorage.setItem("parkpal_header_images", JSON.stringify(Object.fromEntries(headerImageOverrides)));
+  }, [headerImageOverrides]);
 
   const handleSignOut = async () => {
     localStorage.removeItem(GUEST_KEY);
@@ -505,7 +520,7 @@ export default function App() {
               state={park.state}
               established={park.established}
               description={park.description}
-              imageUrl={parkImages[park.id]}
+              imageUrl={headerImageOverrides.get(park.id) ?? parkImages[park.id]}
               imageQuery={park.imageQuery}
               isVisited={parkData.get(park.id)?.visited || false}
               note={parkData.get(park.id)?.note || ""}
@@ -516,6 +531,7 @@ export default function App() {
               onUpdateNote={updateParkNote}
               onUpdateDate={updateParkDate}
               onUpdatePhoto={updateParkPhoto}
+              onUpdateHeaderImage={updateHeaderImage}
               facts={park.facts}
               trivia={park.trivia}
               isOpen={openParkId === park.id}

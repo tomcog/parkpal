@@ -1,4 +1,4 @@
-import { MapPin, X, Calendar, Camera, Loader2 } from "lucide-react";
+import { MapPin, X, Calendar, Camera, Loader2, SwitchCamera, RefreshCw } from "lucide-react";
 import { useState, useRef } from "react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle, DrawerTrigger } from "./ui/drawer";
@@ -32,6 +32,7 @@ interface NationalParkCardProps {
   onUpdateNote: (id: string, note: string) => void;
   onUpdateDate: (id: string, date: string) => void;
   onUpdatePhoto: (id: string, url: string) => void;
+  onUpdateHeaderImage: (id: string, url: string) => void;
   facts: string[];
   trivia: string[];
   isOpen: boolean;
@@ -45,7 +46,7 @@ export default function NationalParkCard({
   established,
   description,
   imageUrl,
-  imageQuery: _imageQuery,
+  imageQuery,
   isVisited,
   note,
   visitedDate,
@@ -55,17 +56,42 @@ export default function NationalParkCard({
   onUpdateNote,
   onUpdateDate,
   onUpdatePhoto,
+  onUpdateHeaderImage,
   facts,
   trivia,
   isOpen,
   onOpenChange,
 }: NationalParkCardProps) {
+  const thumbnailUrls = parkThumbnails[id] || [imageUrl, imageUrl, imageUrl, imageUrl];
+
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
+  const [pickerPhotos, setPickerPhotos] = useState<string[]>(thumbnailUrls);
+  const [isFetchingPhotos, setIsFetchingPhotos] = useState(false);
+  const [photoFetchPage, setPhotoFetchPage] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const thumbnailUrls = parkThumbnails[id] || [imageUrl, imageUrl, imageUrl, imageUrl];
+  const handleRefreshPhotos = async () => {
+    const accessKey = import.meta.env.VITE_UNSPLASH_ACCESS_KEY;
+    if (!accessKey) return;
+    setIsFetchingPhotos(true);
+    const nextPage = photoFetchPage + 1;
+    try {
+      const res = await fetch(
+        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(imageQuery)}&per_page=4&page=${nextPage}&orientation=landscape&client_id=${accessKey}`
+      );
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      if (data.results?.length) {
+        setPickerPhotos(data.results.map((r: { urls: { regular: string } }) => r.urls.regular));
+        setPhotoFetchPage(nextPage);
+      }
+    } catch { /* ignore */ } finally {
+      setIsFetchingPhotos(false);
+    }
+  };
 
   const deletePhoto = async (url: string) => {
     if (!userId) return;
@@ -186,6 +212,13 @@ export default function NationalParkCard({
               aria-label="Close"
             >
               <X className="w-5 h-5" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setPhotoPickerOpen(true); }}
+              className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors z-10 opacity-50 hover:opacity-100"
+              aria-label="Change header photo"
+            >
+              <SwitchCamera className="w-5 h-5" />
             </button>
           </div>
 
@@ -365,6 +398,41 @@ export default function NationalParkCard({
           </div>
         </DrawerContent>
       </Drawer>
+      <Dialog open={photoPickerOpen} onOpenChange={setPhotoPickerOpen}>
+        <DialogContent className="max-w-[360px] p-5 [&>button]:hidden">
+          <div className="flex items-center justify-between mb-3">
+            <DialogTitle className="font-semibold text-[16px]">Choose a photo</DialogTitle>
+            {import.meta.env.VITE_UNSPLASH_ACCESS_KEY && (
+              <button
+                onClick={handleRefreshPhotos}
+                disabled={isFetchingPhotos}
+                className="p-1.5 rounded-full text-gray-400 hover:text-brand-accent hover:bg-gray-100 transition-colors disabled:opacity-30"
+                title="Load new photos"
+              >
+                <RefreshCw className={`w-4 h-4 ${isFetchingPhotos ? "animate-spin" : ""}`} />
+              </button>
+            )}
+          </div>
+          <DialogDescription className="sr-only">Select a header photo for {name}</DialogDescription>
+          <div className="grid grid-cols-2 gap-2">
+            {pickerPhotos.map((url, i) => (
+              <button
+                key={i}
+                onClick={() => { onUpdateHeaderImage(id, url); setPhotoPickerOpen(false); }}
+                className={`aspect-video rounded-md overflow-hidden transition-all hover:ring-2 ring-brand-accent ${imageUrl === url ? "ring-2" : ""}`}
+              >
+                <img src={url} alt={`${name} photo option ${i + 1}`} className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setPhotoPickerOpen(false)}
+            className="mt-3 w-full text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            Cancel
+          </button>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
