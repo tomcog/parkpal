@@ -587,13 +587,13 @@ export default function App() {
               </div>
               <ButtonStandard
                 onClick={() => setSortOrder(sortOrder === "alphabetical" ? "state" : "alphabetical")}
-                theme={sortOrder === "state" ? "green" : "white"}
+                theme="white"
                 icon={sortOrder === "state" ? (
-                  <svg viewBox="0 0 16.167 15.334" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-4 h-4">
-                    <path d="M15.3104 8.34473C15.6399 8.39267 15.9282 8.60289 16.0722 8.91016C16.2364 9.26141 16.1827 9.6767 15.9345 9.97461L13.1356 13.334H15.1669C15.7189 13.3343 16.1669 13.7819 16.1669 14.334C16.1667 14.8859 15.7188 15.3337 15.1669 15.334H10.9999C10.612 15.334 10.2593 15.109 10.0946 14.7578C9.93014 14.4065 9.98304 13.9914 10.2313 13.6934L13.0311 10.334H10.9999C10.4477 10.334 10.0001 9.88612 9.9999 9.33398C9.9999 8.7817 10.4476 8.33398 10.9999 8.33398H15.1669L15.3104 8.34473ZM4.3329 0C4.88508 0 5.33273 0.447865 5.3329 1V11.9189L6.95986 10.293C7.3504 9.9029 7.98354 9.90264 8.37392 10.293C8.76414 10.6834 8.76396 11.3165 8.37392 11.707L5.03994 15.04C5.01612 15.0639 4.99085 15.0861 4.96474 15.1074C4.92768 15.1378 4.88859 15.1643 4.84853 15.1885C4.7775 15.2314 4.70114 15.2657 4.62001 15.29C4.61061 15.2929 4.60116 15.2953 4.59169 15.2979C4.57004 15.3036 4.54847 15.3101 4.52626 15.3145C4.39735 15.3398 4.26447 15.3393 4.13564 15.3135C4.12344 15.311 4.11154 15.3076 4.09951 15.3047C4.07886 15.2998 4.05834 15.2944 4.03798 15.2881C4.02475 15.284 4.01191 15.279 3.99892 15.2744C3.98388 15.2691 3.96882 15.2639 3.954 15.2578C3.93004 15.248 3.90667 15.2372 3.88369 15.2256C3.87758 15.2225 3.87119 15.22 3.86513 15.2168C3.85391 15.2108 3.84289 15.2046 3.83193 15.1982C3.78624 15.1717 3.742 15.1418 3.70009 15.1074C3.6742 15.0862 3.6495 15.0637 3.62587 15.04L0.292865 11.707C-0.0976031 11.3165 -0.0976404 10.6835 0.292865 10.293C0.683393 9.90273 1.31649 9.90259 1.70693 10.293L3.3329 11.9189V1C3.33308 0.447902 3.78078 6.05239e-05 4.3329 0ZM13.0829 0C13.9006 5.66018e-05 14.6854 0.325168 15.2636 0.90332C15.8416 1.48139 16.1667 2.26557 16.1669 3.08301V6C16.1669 6.5521 15.7189 6.99971 15.1669 7C14.6146 7 14.1669 6.55228 14.1669 6V5.33398H11.9999V6C11.9999 6.55221 11.5521 6.99988 10.9999 7C10.4476 7 9.9999 6.55228 9.9999 6V3.08301C10.0001 2.26549 10.3251 1.4814 10.9032 0.90332C11.4814 0.325328 12.2654 8.61697e-05 13.0829 0ZM13.0829 2C12.7958 2.00009 12.5203 2.11446 12.3173 2.31738C12.1143 2.52039 12.0001 2.79592 11.9999 3.08301V3.33398H14.1669V3.08301C14.1667 2.796 14.0524 2.52038 13.8495 2.31738C13.6464 2.1143 13.3701 2.00006 13.0829 2Z" fill="currentColor"/>
-                  </svg>
+                  <MapIcon className="w-5 h-5 text-[#99A1AF]" />
                 ) : (
-                  <MapIcon className="w-5 h-5" />
+                  <svg viewBox="0 0 16.167 15.334" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-4 h-4">
+                    <path d="M15.3104 8.34473C15.6399 8.39267 15.9282 8.60289 16.0722 8.91016C16.2364 9.26141 16.1827 9.6767 15.9345 9.97461L13.1356 13.334H15.1669C15.7189 13.3343 16.1669 13.7819 16.1669 14.334C16.1667 14.8859 15.7188 15.3337 15.1669 15.334H10.9999C10.612 15.334 10.2593 15.109 10.0946 14.7578C9.93014 14.4065 9.98304 13.9914 10.2313 13.6934L13.0311 10.334H10.9999C10.4477 10.334 10.0001 9.88612 9.9999 9.33398C9.9999 8.7817 10.4476 8.33398 10.9999 8.33398H15.1669L15.3104 8.34473ZM4.3329 0C4.88508 0 5.33273 0.447865 5.3329 1V11.9189L6.95986 10.293C7.3504 9.9029 7.98354 9.90264 8.37392 10.293C8.76414 10.6834 8.76396 11.3165 8.37392 11.707L5.03994 15.04C5.01612 15.0639 4.99085 15.0861 4.96474 15.1074C4.92768 15.1378 4.88859 15.1643 4.84853 15.1885C4.7775 15.2314 4.70114 15.2657 4.62001 15.29C4.61061 15.2929 4.60116 15.2953 4.59169 15.2979C4.57004 15.3036 4.54847 15.3101 4.52626 15.3145C4.39735 15.3398 4.26447 15.3393 4.13564 15.3135C4.12344 15.311 4.11154 15.3076 4.09951 15.3047C4.07886 15.2998 4.05834 15.2944 4.03798 15.2881C4.02475 15.284 4.01191 15.279 3.99892 15.2744C3.98388 15.2691 3.96882 15.2639 3.954 15.2578C3.93004 15.248 3.90667 15.2372 3.88369 15.2256C3.87758 15.2225 3.87119 15.22 3.86513 15.2168C3.85391 15.2108 3.84289 15.2046 3.83193 15.1982C3.78624 15.1717 3.742 15.1418 3.70009 15.1074C3.6742 15.0862 3.6495 15.0637 3.62587 15.04L0.292865 11.707C-0.0976031 11.3165 -0.0976404 10.6835 0.292865 10.293C0.683393 9.90273 1.31649 9.90259 1.70693 10.293L3.3329 11.9189V1C3.33308 0.447902 3.78078 6.05239e-05 4.3329 0ZM13.0829 0C13.9006 5.66018e-05 14.6854 0.325168 15.2636 0.90332C15.8416 1.48139 16.1667 2.26557 16.1669 3.08301V6C16.1669 6.5521 15.7189 6.99971 15.1669 7C14.6146 7 14.1669 6.55228 14.1669 6V5.33398H11.9999V6C11.9999 6.55221 11.5521 6.99988 10.9999 7C10.4476 7 9.9999 6.55228 9.9999 6V3.08301C10.0001 2.26549 10.3251 1.4814 10.9032 0.90332C11.4814 0.325328 12.2654 8.61697e-05 13.0829 0ZM13.0829 2C12.7958 2.00009 12.5203 2.11446 12.3173 2.31738C12.1143 2.52039 12.0001 2.79592 11.9999 3.08301V3.33398H14.1669V3.08301C14.1667 2.796 14.0524 2.52038 13.8495 2.31738C13.6464 2.1143 13.3701 2.00006 13.0829 2Z" fill="#99A1AF"/>
+                  </svg>
                 )}
                 className="w-[44px] px-0 flex-shrink-0"
                 title={sortOrder === "alphabetical" ? "Sort by State" : "Sort A-Z"}
@@ -632,34 +632,37 @@ export default function App() {
             </div>
 
             {/* Stats */}
-            {filter === "visited" ? (
-              <div>
-                <p className="leading-[normal] not-italic text-[#99A1AF]">
-                  <span>Showing {visitedCount} </span>
-                  <span className="text-brand-accent">visited</span>
-                  <span> of {totalCount} parks</span>
-                </p>
-                <Progress value={(visitedCount / totalCount) * 100} className="h-2 mt-2" indicatorClassName="bg-brand-accent" />
-              </div>
-            ) : filter === "to-go" ? (
-              <div>
-                <p className="leading-[normal] not-italic text-[#99A1AF]">
-                  <span>Showing {totalCount - visitedCount} </span>
-                  <span className="text-brand-accent">to go</span>
-                  <span> of {totalCount} parks</span>
-                </p>
-                <Progress value={(visitedCount / totalCount) * 100} className="h-2 mt-2" indicatorClassName="bg-brand-accent" />
-              </div>
-            ) : (
-              <div>
-                <p className="leading-[normal] not-italic text-[#99A1AF]">
-                  {dataLoading ? "Loading..." : filteredParks.length === totalCount && !searchQuery
-                    ? <>Showing <span className="text-brand-accent">all</span> {totalCount} national parks{sortOrder === "state" && <span className="text-brand-accent"> by state</span>}</>
-                    : <>Showing {filteredParks.length} of {totalCount} parks{sortOrder === "state" && <span className="text-brand-accent"> by state</span>}</>}
-                </p>
-                <Progress value={(visitedCount / totalCount) * 100} className="h-2 mt-2" indicatorClassName="bg-brand-accent" />
-              </div>
-            )}
+            {(() => {
+              const sortLabel = sortOrder === "state" ? "by state" : "alphabetically";
+              let before = "";
+              let green = "";
+              let after = "";
+              if (dataLoading) {
+                before = "Loading...";
+              } else if (filter === "visited") {
+                before = `Showing ${visitedCount} of ${totalCount} national parks`;
+                green = "visited";
+                after = sortLabel;
+              } else if (filter === "to-go") {
+                before = `Showing ${totalCount - visitedCount} of ${totalCount} national parks`;
+                green = "to go";
+                after = sortLabel;
+              } else {
+                before = "Showing";
+                green = searchQuery ? `${filteredParks.length} of ${totalCount}` : "all";
+                after = `${searchQuery ? "" : `${totalCount} `}national parks ${sortLabel}`;
+              }
+              return (
+                <div>
+                  <div className="flex gap-[4px] leading-[normal] flex-wrap">
+                    <span className="text-[#9198A6] font-normal">{before}</span>
+                    {green && <span className="text-brand-accent font-medium">{green}</span>}
+                    {after && <span className="text-[#9198A6] font-normal">{after}</span>}
+                  </div>
+                  <Progress value={(visitedCount / totalCount) * 100} className="h-2 mt-2" indicatorClassName="bg-brand-accent" />
+                </div>
+              );
+            })()}
           </div>
         </div>
       </header>
