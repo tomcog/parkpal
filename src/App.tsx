@@ -578,7 +578,7 @@ export default function App() {
                 <input
                   ref={searchInputRef}
                   autoFocus
-                  placeholder="Search parks"
+                  placeholder="Search national parks"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "a") e.currentTarget.select(); }}

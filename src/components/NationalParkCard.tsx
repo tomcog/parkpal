@@ -69,8 +69,11 @@ export default function NationalParkCard({
   const [isUploading, setIsUploading] = useState(false);
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
   const [pickerPhotos, setPickerPhotos] = useState<string[]>(thumbnailUrls);
-  const [isFetchingPhotos, setIsFetchingPhotos] = useState(false);
-  const [photoPool, setPhotoPool] = useState<string[]>([]);
+  const [isFetchingPickerPhotos, setIsFetchingPickerPhotos] = useState(false);
+  const [pickerPhotoPool, setPickerPhotoPool] = useState<string[]>([]);
+  const [galleryPhotos, setGalleryPhotos] = useState<string[]>(thumbnailUrls);
+  const [isFetchingGalleryPhotos, setIsFetchingGalleryPhotos] = useState(false);
+  const [galleryPhotoPool, setGalleryPhotoPool] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const visitPhotoInputRef = useRef<HTMLInputElement>(null);
 
@@ -79,31 +82,54 @@ export default function NationalParkCard({
     return shuffled.slice(0, Math.min(4, shuffled.length));
   };
 
-  const handleRefreshPhotos = async () => {
+  const fetchUnsplashPool = async (): Promise<string[]> => {
     const accessKey = import.meta.env.VITE_UNSPLASH_ACCESS_KEY;
-    if (!accessKey || isFetchingPhotos) return;
+    if (!accessKey) return [];
+    const res = await fetch(
+      `https://api.unsplash.com/search/photos?query=${encodeURIComponent(imageQuery)}&per_page=20&page=1&orientation=landscape&client_id=${accessKey}`
+    );
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    return (data.results ?? []).map((r: { urls: { regular: string } }) => r.urls.regular);
+  };
 
-    // If we already have a pool, just shuffle and pick 4 — no extra API call needed
-    if (photoPool.length > 0) {
-      setPickerPhotos(pickRandom4(photoPool));
+  const handleRefreshPickerPhotos = async () => {
+    if (isFetchingPickerPhotos) return;
+
+    if (pickerPhotoPool.length > 0) {
+      setPickerPhotos(pickRandom4(pickerPhotoPool));
       return;
     }
 
-    // First refresh: fetch a larger pool so subsequent clicks always have variety
-    setIsFetchingPhotos(true);
+    setIsFetchingPickerPhotos(true);
     try {
-      const res = await fetch(
-        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(imageQuery)}&per_page=20&page=1&orientation=landscape&client_id=${accessKey}`
-      );
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      const urls: string[] = (data.results ?? []).map((r: { urls: { regular: string } }) => r.urls.regular);
+      const urls = await fetchUnsplashPool();
       if (urls.length > 0) {
-        setPhotoPool(urls);
+        setPickerPhotoPool(urls);
         setPickerPhotos(pickRandom4(urls));
       }
     } catch { /* ignore */ } finally {
-      setIsFetchingPhotos(false);
+      setIsFetchingPickerPhotos(false);
+    }
+  };
+
+  const handleRefreshGalleryPhotos = async () => {
+    if (isFetchingGalleryPhotos) return;
+
+    if (galleryPhotoPool.length > 0) {
+      setGalleryPhotos(pickRandom4(galleryPhotoPool));
+      return;
+    }
+
+    setIsFetchingGalleryPhotos(true);
+    try {
+      const urls = await fetchUnsplashPool();
+      if (urls.length > 0) {
+        setGalleryPhotoPool(urls);
+        setGalleryPhotos(pickRandom4(urls));
+      }
+    } catch { /* ignore */ } finally {
+      setIsFetchingGalleryPhotos(false);
     }
   };
 
@@ -485,17 +511,17 @@ export default function NationalParkCard({
               {import.meta.env.VITE_UNSPLASH_ACCESS_KEY && (
                 <div className="flex justify-end mb-2">
                   <button
-                    onClick={handleRefreshPhotos}
-                    disabled={isFetchingPhotos}
+                    onClick={handleRefreshGalleryPhotos}
+                    disabled={isFetchingGalleryPhotos}
                     className="text-xs text-gray-400 hover:text-brand-accent transition-colors disabled:opacity-50 flex items-center gap-1"
                   >
-                    <RefreshCw className={`w-3 h-3 ${isFetchingPhotos ? "animate-spin" : ""}`} />
-                    {isFetchingPhotos ? "Loading…" : "Refresh photos"}
+                    <RefreshCw className={`w-3 h-3 ${isFetchingGalleryPhotos ? "animate-spin" : ""}`} />
+                    {isFetchingGalleryPhotos ? "Loading…" : "Refresh photos"}
                   </button>
                 </div>
               )}
               <div className="flex flex-col gap-4">
-                {pickerPhotos.map((url, index) => (
+                {galleryPhotos.map((url, index) => (
                   <div key={index} className="w-full overflow-hidden rounded-md">
                     <img src={url} alt={`${name} photo ${index + 1}`} className="object-cover w-full h-auto" />
                   </div>
@@ -511,12 +537,12 @@ export default function NationalParkCard({
             <DialogTitle className="font-semibold text-[16px]">Choose a photo</DialogTitle>
             {import.meta.env.VITE_UNSPLASH_ACCESS_KEY && (
               <button
-                onClick={handleRefreshPhotos}
-                disabled={isFetchingPhotos}
+                onClick={handleRefreshPickerPhotos}
+                disabled={isFetchingPickerPhotos}
                 className="p-1.5 rounded-full text-gray-400 hover:text-brand-accent hover:bg-gray-100 transition-colors disabled:opacity-30"
                 title="Load new photos"
               >
-                <RefreshCw className={`w-4 h-4 ${isFetchingPhotos ? "animate-spin" : ""}`} />
+                <RefreshCw className={`w-4 h-4 ${isFetchingPickerPhotos ? "animate-spin" : ""}`} />
               </button>
             )}
           </div>
