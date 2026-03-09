@@ -640,17 +640,17 @@ export default function App() {
               if (dataLoading) {
                 before = "Loading...";
               } else if (filter === "visited") {
-                before = `Showing ${visitedCount} of ${totalCount} national parks`;
+                before = `Showing ${visitedCount} of ${totalCount} parks`;
                 green = "visited";
                 after = sortLabel;
               } else if (filter === "to-go") {
-                before = `Showing ${totalCount - visitedCount} of ${totalCount} national parks`;
+                before = `Showing ${totalCount - visitedCount} of ${totalCount} parks`;
                 green = "to go";
                 after = sortLabel;
               } else {
                 before = "Showing";
                 green = searchQuery ? `${filteredParks.length} of ${totalCount}` : "all";
-                after = `${searchQuery ? "" : `${totalCount} `}national parks ${sortLabel}`;
+                after = `${searchQuery ? "" : `${totalCount} `}parks ${sortLabel}`;
               }
               return (
                 <div>
