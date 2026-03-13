@@ -277,7 +277,7 @@ export default function NationalParkCard({
       <Drawer open={isOpen} onOpenChange={onOpenChange}>
         <DrawerTrigger asChild>
           <div
-            className="bg-white overflow-clip relative rounded-[8px] shadow-[0px_16px_16px_-8px_rgba(12,12,13,0.1),0px_4px_4px_-4px_rgba(12,12,13,0.05)] cursor-pointer transition-all hover:shadow-[0px_20px_24px_-8px_rgba(12,12,13,0.15),0px_6px_6px_-4px_rgba(12,12,13,0.08)] flex flex-col"
+            className="bg-white overflow-clip relative rounded-[8px] shadow-[0px_16px_16px_-8px_rgba(12,12,13,0.1),0px_4px_4px_-4px_rgba(12,12,13,0.05)] cursor-pointer transition-all hover:shadow-[0px_20px_24px_-8px_rgba(12,12,13,0.15),0px_6px_6px_-4px_rgba(12,12,13,0.08)] flex flex-col h-full"
             data-name="card.national_park"
           >
             <div className="relative h-[150px] w-full">
@@ -292,7 +292,7 @@ export default function NationalParkCard({
                 </Badge>
               )}
             </div>
-            <div className="flex flex-col gap-2 p-4">
+            <div className="flex flex-col gap-2 p-4 flex-1">
               <p className="leading-[normal] not-italic text-black font-bold text-[18px]">{name}</p>
               <p className="leading-[normal] not-italic opacity-[0.5] text-black">{state}</p>
               <p className="leading-[1.3] not-italic text-black text-[14px]">{description}</p>

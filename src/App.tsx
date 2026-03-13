@@ -689,7 +689,7 @@ export default function App() {
       <main className="max-w-[1270px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredParks.map((park) => (
-            <div key={park.id} id={`park-card-${park.id}`}>
+            <div key={park.id} id={`park-card-${park.id}`} className="h-full">
               <NationalParkCard
                 id={park.id}
                 name={park.name}
