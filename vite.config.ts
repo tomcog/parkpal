@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
+import { readFileSync } from 'fs'
+
+const ports = JSON.parse(readFileSync(path.resolve(__dirname, '../ports.json'), 'utf-8'))
 
 export default defineConfig({
   plugins: [
@@ -45,5 +48,8 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  server: {
+    port: ports['ParkPal'],
   },
 })
