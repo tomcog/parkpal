@@ -1,5 +1,5 @@
 import { MapPin, X, Calendar, Camera, Loader2, SwitchCamera, RefreshCw, ImageUp } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle, DrawerTrigger } from "./ui/drawer";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./ui/dialog";
@@ -76,6 +76,16 @@ export default function NationalParkCard({
   const [galleryPhotoPool, setGalleryPhotoPool] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const visitPhotoInputRef = useRef<HTMLInputElement>(null);
+  const [headerVisible, setHeaderVisible] = useState(true);
+  const lastScrollTop = useRef(0);
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const scrollTop = e.currentTarget.scrollTop;
+    const isScrollingUp = scrollTop < lastScrollTop.current;
+    const pastHeader = scrollTop > 250;
+    setHeaderVisible(isScrollingUp || !pastHeader);
+    lastScrollTop.current = scrollTop;
+  }, []);
 
   const pickRandom4 = (pool: string[]) => {
     const shuffled = [...pool].sort(() => Math.random() - 0.5);
@@ -274,7 +284,7 @@ export default function NationalParkCard({
 
   return (
     <>
-      <Drawer open={isOpen} onOpenChange={onOpenChange}>
+      <Drawer open={isOpen} onOpenChange={(open) => { if (open) { setHeaderVisible(true); lastScrollTop.current = 0; } onOpenChange(open); }} handleOnly>
         <DrawerTrigger asChild>
           <div
             className="bg-white overflow-clip relative rounded-[8px] shadow-[0px_16px_16px_-8px_rgba(12,12,13,0.1),0px_4px_4px_-4px_rgba(12,12,13,0.05)] cursor-pointer transition-all hover:shadow-[0px_20px_24px_-8px_rgba(12,12,13,0.15),0px_6px_6px_-4px_rgba(12,12,13,0.08)] flex flex-col h-full"
@@ -301,50 +311,55 @@ export default function NationalParkCard({
         </DrawerTrigger>
 
         <DrawerContent className="!h-[100vh] !max-h-[100vh] !mt-0 !rounded-none !border-none !p-0 [&>div:first-child]:hidden">
-          <div className="relative h-[250px] w-full flex-shrink-0">
-            <ImageWithFallback
-              alt={name}
-              className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
-              src={imageUrl}
-            />
-            <div className="absolute bottom-[-12px] left-0 w-full px-4 text-white font-bold text-[72px] text-right leading-none">
-              {parkAbbreviations[id]?.toUpperCase() || ""} {stateAbbreviations[state]?.toUpperCase() || ""}
-            </div>
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1 bg-white/50 rounded-full" />
-            <button
-              onClick={(e) => { e.stopPropagation(); onOpenChange(false); }}
-              className="absolute top-4 left-4 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors z-10 opacity-50 hover:opacity-100"
-              aria-label="Close"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <div className="absolute top-4 right-4 flex flex-col gap-4 z-10">
-              <button
-                onClick={(e) => { e.stopPropagation(); setPhotoPickerOpen(true); }}
-                className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors opacity-50 hover:opacity-100"
-                aria-label="Change header photo"
-              >
-                <SwitchCamera className="w-5 h-5" />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (!userId) { alert("Sign in to upload photos"); return; }
-                  fileInputRef.current?.click();
-                }}
-                disabled={isUploading}
-                className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors opacity-50 hover:opacity-100 disabled:opacity-30"
-                aria-label="Upload your photo"
-              >
-                {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImageUp className="w-5 h-5" />}
-              </button>
-            </div>
-          </div>
-
           <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
           <input type="file" ref={visitPhotoInputRef} onChange={handleVisitPhotoUpload} accept="image/*" className="hidden" />
 
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto" onScroll={handleScroll}>
+            <div
+              className={`sticky top-0 z-20 h-[250px] w-full transition-transform duration-300 ${headerVisible ? "translate-y-0" : "-translate-y-full"}`}
+            >
+              <div className="relative h-full w-full">
+                <ImageWithFallback
+                  alt={name}
+                  className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
+                  src={imageUrl}
+                />
+                <div className="absolute bottom-[-12px] left-0 w-full px-4 text-white font-bold text-[72px] text-right leading-none">
+                  {parkAbbreviations[id]?.toUpperCase() || ""} {stateAbbreviations[state]?.toUpperCase() || ""}
+                </div>
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1 bg-white/50 rounded-full" />
+                <button
+                  onClick={(e) => { e.stopPropagation(); onOpenChange(false); }}
+                  className="absolute top-4 left-4 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors z-10 opacity-50 hover:opacity-100"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <div className="absolute top-4 right-4 flex flex-col gap-4 z-10">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setPhotoPickerOpen(true); }}
+                    className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors opacity-50 hover:opacity-100"
+                    aria-label="Change header photo"
+                  >
+                    <SwitchCamera className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!userId) { alert("Sign in to upload photos"); return; }
+                      fileInputRef.current?.click();
+                    }}
+                    disabled={isUploading}
+                    className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors opacity-50 hover:opacity-100 disabled:opacity-30"
+                    aria-label="Upload your photo"
+                  >
+                    {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImageUp className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6">
             <DrawerTitle className="sr-only">{name}</DrawerTitle>
             <DrawerDescription className="sr-only">Detailed information about {name}</DrawerDescription>
 
@@ -528,6 +543,7 @@ export default function NationalParkCard({
                 ))}
               </div>
             </div>
+          </div>
           </div>
         </DrawerContent>
       </Drawer>
