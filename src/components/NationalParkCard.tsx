@@ -76,15 +76,30 @@ export default function NationalParkCard({
   const [galleryPhotoPool, setGalleryPhotoPool] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const visitPhotoInputRef = useRef<HTMLInputElement>(null);
-  const [headerVisible, setHeaderVisible] = useState(true);
+  const [headerTranslateY, setHeaderTranslateY] = useState(0);
+  const [headerTransition, setHeaderTransition] = useState(false);
   const lastScrollTop = useRef(0);
+  const scrollingUp = useRef(false);
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const scrollTop = e.currentTarget.scrollTop;
-    const isScrollingUp = scrollTop < lastScrollTop.current;
-    const pastHeader = scrollTop > 250;
-    setHeaderVisible(isScrollingUp || !pastHeader);
+    const wasScrollingUp = scrollingUp.current;
+    scrollingUp.current = scrollTop < lastScrollTop.current;
     lastScrollTop.current = scrollTop;
+
+    if (scrollTop <= 0) {
+      // At top — fully visible, no transition needed
+      setHeaderTranslateY(0);
+      setHeaderTransition(false);
+    } else if (scrollingUp.current) {
+      // Scrolling up — pop header in with transition
+      if (!wasScrollingUp) setHeaderTransition(true);
+      setHeaderTranslateY(0);
+    } else {
+      // Scrolling down — track scroll 1:1 to simulate natural scrolling away
+      if (wasScrollingUp) setHeaderTransition(false);
+      setHeaderTranslateY(-Math.min(scrollTop, 250));
+    }
   }, []);
 
   const pickRandom4 = (pool: string[]) => {
@@ -284,7 +299,7 @@ export default function NationalParkCard({
 
   return (
     <>
-      <Drawer open={isOpen} onOpenChange={(open) => { if (open) { setHeaderVisible(true); lastScrollTop.current = 0; } onOpenChange(open); }} handleOnly>
+      <Drawer open={isOpen} onOpenChange={(open) => { if (open) { setHeaderTranslateY(0); setHeaderTransition(false); lastScrollTop.current = 0; } onOpenChange(open); }} handleOnly>
         <DrawerTrigger asChild>
           <div
             className="bg-white overflow-clip relative rounded-[8px] shadow-[0px_16px_16px_-8px_rgba(12,12,13,0.1),0px_4px_4px_-4px_rgba(12,12,13,0.05)] cursor-pointer transition-all hover:shadow-[0px_20px_24px_-8px_rgba(12,12,13,0.15),0px_6px_6px_-4px_rgba(12,12,13,0.08)] flex flex-col h-full"
@@ -316,7 +331,11 @@ export default function NationalParkCard({
 
           <div className="flex-1 overflow-y-auto" onScroll={handleScroll}>
             <div
-              className={`sticky top-0 z-20 h-[250px] w-full transition-transform duration-300 ${headerVisible ? "translate-y-0" : "-translate-y-full"}`}
+              className="sticky top-0 z-20 h-[250px] w-full"
+              style={{
+                transform: `translateY(${headerTranslateY}px)`,
+                transition: headerTransition ? "transform 300ms ease-out" : "none",
+              }}
             >
               <div className="relative h-full w-full">
                 <ImageWithFallback
