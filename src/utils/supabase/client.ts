@@ -16,3 +16,15 @@ export type ParkVisitRow = {
   header_photo_url: string | null;
   updated_at: string;
 };
+
+export type SavedRouteRow = {
+  id: string;
+  user_id: string;
+  name: string;
+  origin: string;
+  destination: string;
+  encoded_polyline: string;
+  distance_meters: number;
+  duration_seconds: number;
+  created_at: string;
+};

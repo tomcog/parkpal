@@ -1,5 +1,5 @@
 import { MapPin, X, Calendar, Camera, Loader2, SwitchCamera, RefreshCw, ImageUp } from "lucide-react";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle, DrawerTrigger } from "./ui/drawer";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./ui/dialog";
@@ -76,31 +76,6 @@ export default function NationalParkCard({
   const [galleryPhotoPool, setGalleryPhotoPool] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const visitPhotoInputRef = useRef<HTMLInputElement>(null);
-  const [headerTranslateY, setHeaderTranslateY] = useState(0);
-  const [headerTransition, setHeaderTransition] = useState(false);
-  const lastScrollTop = useRef(0);
-  const scrollingUp = useRef(false);
-
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const scrollTop = e.currentTarget.scrollTop;
-    const wasScrollingUp = scrollingUp.current;
-    scrollingUp.current = scrollTop < lastScrollTop.current;
-    lastScrollTop.current = scrollTop;
-
-    if (scrollTop <= 0) {
-      // At top — fully visible, no transition needed
-      setHeaderTranslateY(0);
-      setHeaderTransition(false);
-    } else if (scrollingUp.current) {
-      // Scrolling up — pop header in with transition
-      if (!wasScrollingUp) setHeaderTransition(true);
-      setHeaderTranslateY(0);
-    } else {
-      // Scrolling down — track scroll 1:1 to simulate natural scrolling away
-      if (wasScrollingUp) setHeaderTransition(false);
-      setHeaderTranslateY(-Math.min(scrollTop, 250));
-    }
-  }, []);
 
   const pickRandom4 = (pool: string[]) => {
     const shuffled = [...pool].sort(() => Math.random() - 0.5);
@@ -299,7 +274,7 @@ export default function NationalParkCard({
 
   return (
     <>
-      <Drawer open={isOpen} onOpenChange={(open) => { if (open) { setHeaderTranslateY(0); setHeaderTransition(false); lastScrollTop.current = 0; } onOpenChange(open); }} handleOnly>
+      <Drawer open={isOpen} onOpenChange={onOpenChange} handleOnly>
         <DrawerTrigger asChild>
           <div
             className="bg-white overflow-clip relative rounded-[8px] shadow-[0px_16px_16px_-8px_rgba(12,12,13,0.1),0px_4px_4px_-4px_rgba(12,12,13,0.05)] cursor-pointer transition-all hover:shadow-[0px_20px_24px_-8px_rgba(12,12,13,0.15),0px_6px_6px_-4px_rgba(12,12,13,0.08)] flex flex-col h-full"
@@ -329,14 +304,8 @@ export default function NationalParkCard({
           <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
           <input type="file" ref={visitPhotoInputRef} onChange={handleVisitPhotoUpload} accept="image/*" className="hidden" />
 
-          <div className="flex-1 overflow-y-auto" onScroll={handleScroll}>
-            <div
-              className="sticky top-0 z-20 h-[250px] w-full"
-              style={{
-                transform: `translateY(${headerTranslateY}px)`,
-                transition: headerTransition ? "transform 300ms ease-out" : "none",
-              }}
-            >
+          <div className="flex-1 overflow-y-auto">
+            <div className="h-[250px] w-full">
               <div className="relative h-full w-full">
                 <ImageWithFallback
                   alt={name}
@@ -476,7 +445,7 @@ export default function NationalParkCard({
                     className="mb-4 relative rounded-md overflow-hidden aspect-video w-full bg-gray-100 border border-gray-200 cursor-zoom-in group"
                     onClick={() => setLightboxOpen(true)}
                   >
-                    <img src={photoUrl} alt={`My photo from ${name}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                    <img src={photoUrl} alt={`My photo from ${name}`} className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                   </div>
 

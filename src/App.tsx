@@ -8,10 +8,11 @@ import { Input } from "./components/ui/input";
 import { Progress } from "./components/ui/progress";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./components/ui/dialog";
 import { Drawer, DrawerContent } from "./components/ui/drawer";
-import { Search, X, Map as MapIcon, CircleUser, LocateFixed, Loader2, AlertCircle, PencilLine, LogOut } from "lucide-react";
+import { Search, X, Map as MapIcon, CircleUser, LocateFixed, Loader2, AlertCircle, PencilLine, LogOut, Route as RouteIcon } from "lucide-react";
 import { supabase } from "./utils/supabase/client";
 import { ButtonStandard } from "./components/ButtonStandard";
 import NounNationalPark from "./imports/NounNationalPark19895091";
+import RouteFinder from "./components/RouteFinder";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyDljWXxLD0ofXyh00bCYNtF1cW4YOXm48k";
 
@@ -113,6 +114,40 @@ export default function App() {
   const [filter, setFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Scroll-aware header: hides naturally as user scrolls down, slides back in
+  // immediately when user scrolls up. Same pattern as NationalParkCard.
+  const headerRef = useRef<HTMLElement>(null);
+  const [headerTranslateY, setHeaderTranslateY] = useState(0);
+  const [headerTransition, setHeaderTransition] = useState(false);
+  const lastScrollTopRef = useRef(0);
+  const scrollingUpRef = useRef(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      const headerHeight = headerRef.current?.offsetHeight ?? 0;
+      const wasScrollingUp = scrollingUpRef.current;
+      scrollingUpRef.current = scrollTop < lastScrollTopRef.current;
+      lastScrollTopRef.current = scrollTop;
+
+      if (scrollTop <= 0) {
+        // At top — fully visible, no transition needed.
+        setHeaderTranslateY(0);
+        setHeaderTransition(false);
+      } else if (scrollingUpRef.current) {
+        // Scrolling up — pop header in with a smooth transition.
+        if (!wasScrollingUp) setHeaderTransition(true);
+        setHeaderTranslateY(0);
+      } else {
+        // Scrolling down — track scroll 1:1 to feel like the header is part of the page.
+        if (wasScrollingUp) setHeaderTransition(false);
+        setHeaderTranslateY(-Math.min(scrollTop, headerHeight));
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
   const [dataLoading, setDataLoading] = useState(false);
   const [sortOrder, setSortOrder] = useState<SortType>("alphabetical");
   const [openParkId, setOpenParkId] = useState<string | null>(null);
@@ -122,6 +157,7 @@ export default function App() {
   const [locating, setLocating] = useState(false);
   const [nearestPark, setNearestPark] = useState<{ park: (typeof nationalParks)[0]; distanceMiles: number } | null>(null);
   const [nearestDialogOpen, setNearestDialogOpen] = useState(false);
+  const [routeFinderOpen, setRouteFinderOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [headerImageOverrides, setHeaderImageOverrides] = useState<Map<string, string>>(() => {
     try {
@@ -406,7 +442,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-20">
+      <header
+        ref={headerRef}
+        className="bg-white border-b border-gray-200 sticky top-0 z-20"
+        style={{
+          transform: `translateY(${headerTranslateY}px)`,
+          transition: headerTransition ? "transform 300ms ease-out" : "none",
+        }}
+      >
         <div className="max-w-[1270px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col gap-4">
 
@@ -415,14 +458,36 @@ export default function App() {
               <div className="h-[64px] w-fit">
                 <NounNationalPark />
               </div>
-              <button
-                onClick={() => setUserMenuOpen(true)}
-                className="p-1 text-gray-400 hover:text-brand-accent transition-colors"
-                aria-label="Account"
-              >
-                <CircleUser className="w-6 h-6" />
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setRouteFinderOpen(true)}
+                  className="p-1 text-gray-400 hover:text-brand-accent transition-colors"
+                  aria-label="Find parks along a route"
+                  title="Parks along your route"
+                >
+                  <RouteIcon className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={() => setUserMenuOpen(true)}
+                  className="p-1 text-gray-400 hover:text-brand-accent transition-colors"
+                  aria-label="Account"
+                >
+                  <CircleUser className="w-6 h-6" />
+                </button>
+              </div>
             </div>
+
+            <RouteFinder
+              open={routeFinderOpen}
+              onOpenChange={setRouteFinderOpen}
+              apiKey={GOOGLE_MAPS_API_KEY}
+              userId={user?.id ?? null}
+              onSelectPark={(parkId) => {
+                setFilter("all");
+                setSearchQuery("");
+                setOpenParkId(parkId);
+              }}
+            />
 
             {/* User profile page */}
             <Drawer open={userMenuOpen} onOpenChange={setUserMenuOpen} modal={false}>
