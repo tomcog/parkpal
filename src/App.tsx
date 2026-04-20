@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from "react";
-import type { User } from "@supabase/supabase-js";
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import NationalParkCard from "./components/NationalParkCard";
 import AuthScreen from "./components/AuthScreen";
 import { nationalParks } from "./data/nationalParks";
+import { parkImages } from "./data/parkImages";
 import { Button } from "./components/ui/button";
 import { Progress } from "./components/ui/progress";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./components/ui/dialog";
@@ -11,6 +11,8 @@ import { Search, X, Map as MapIcon, CircleUser, LocateFixed, Loader2, AlertCircl
 import { supabase } from "./utils/supabase/client";
 import { ButtonStandard } from "./components/ButtonStandard";
 import NounNationalPark from "./imports/NounNationalPark19895091";
+import { useAuth } from "./hooks/useAuth";
+import { useParkData } from "./hooks/useParkData";
 
 const RouteFinder = lazy(() => import("./components/RouteFinder"));
 
@@ -26,91 +28,26 @@ function haversineDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-const parkImages: Record<string, string> = {
-  "acadia": "https://images.unsplash.com/photo-1609697992606-4d6ec6d6178a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhY2FkaWElMjBuYXRpb25hbCUyMHBhcmt8ZW58MXx8fHwxNzYyOTI3NTA0fDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "american-samoa": "https://images.unsplash.com/photo-1600903304891-5c9e67d87712?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhbWVyaWNhbiUyMHNhbW9hJTIwdHJvcGljYWwlMjBiZWFjaHxlbnwxfHx8fDE3NjI5Mjc4MTh8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  "arches": "https://images.unsplash.com/photo-1556251999-2b4dbcc08d30?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhcmNoZXMlMjBuYXRpb25hbCUyMHBhcmslMjB1dGFofGVufDF8fHx8MTc2MjkyNzUwNnww&ixlib=rb-4.1.0&q=80&w=1080",
-  "badlands": "https://images.unsplash.com/photo-1631558109716-503b8f38be7b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxiYWRsYW5kcyUyMHNvdXRoJTIwZGFrb3RhfGVufDF8fHx8MTc2MjkyNzUwOHww&ixlib=rb-4.1.0&q=80&w=1080",
-  "big-bend": "https://images.unsplash.com/photo-1680402809298-6e42df410af8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxiaWclMjBiZW5kJTIwdGV4YXMlMjBkZXNlcnR8ZW58MXx8fHwxNzYyOTI3NTExfDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "biscayne": "https://images.unsplash.com/photo-1660151186907-8cdf0a347d1f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxiaXNjYXluZSUyMGJheSUyMGNvcmFsJTIwcmVlZnxlbnwxfHx8fDE3NjI5Mjc4MTh8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  "black-canyon": "https://images.unsplash.com/photo-1639243987646-7c2cce1d5327?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxibGFjayUyMGNhbnlvbiUyMGd1bm5pc29ufGVufDF8fHx8MTc2MjkyNzgxOHww&ixlib=rb-4.1.0&q=80&w=1080",
-  "bryce-canyon": "https://images.unsplash.com/photo-1517040414285-12bdaf61b161?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxicnljZSUyMGNhbnlvbiUyMGhvb2Rvb3N8ZW58MXx8fHwxNzYyOTI3NTA2fDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "canyonlands": "https://images.unsplash.com/photo-1712247296010-3ea5882550b6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjYW55b25sYW5kcyUyMG1lc2ElMjBhcmNofGVufDF8fHx8MTc2MjkyNzUwOXww&ixlib=rb-4.1.0&q=80&w=1080",
-  "capitol-reef": "https://images.unsplash.com/photo-1680964005996-ad66e78d3cd2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjYXBpdG9sJTIwcmVlZiUyMHV0YWh8ZW58MXx8fHwxNzYyOTI3NTEwfDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "carlsbad-caverns": "https://images.unsplash.com/photo-1637047868520-b0081dd1c11a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjYXJsc2JhZCUyMGNhdmVybnMlMjBjYXZlfGVufDF8fHx8MTc2MjkyNzUxMXww&ixlib=rb-4.1.0&q=80&w=1080",
-  "channel-islands": "https://images.unsplash.com/photo-1694028723643-c29e04a95e44?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjaGFubmVsJTIwaXNsYW5kcyUyMGNhbGlmb3JuaWF8ZW58MXx8fHwxNzYyOTI3ODE5fDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "congaree": "https://images.unsplash.com/photo-1675113757305-113b913bd7ab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb25nYXJlZSUyMGZvcmVzdCUyMHN3YW1wfGVufDF8fHx8MTc2MjkyNzgxOXww&ixlib=rb-4.1.0&q=80&w=1080",
-  "crater-lake": "https://images.unsplash.com/photo-1731707485055-d6b3c5e04c94?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjcmF0ZXIlMjBsYWtlJTIwb3JlZ29uJTIwYmx1ZXxlbnwxfHx8fDE3NjI5Mjc1MTB8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  "cuyahoga-valley": "https://images.unsplash.com/photo-1717181638086-c3327e283c03?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjdXlhaG9nYSUyMHZhbGxleSUyMHdhdGVyZmFsbHxlbnwxfHx8fDE3NjI5Mjc4MTl8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  "death-valley": "https://images.unsplash.com/photo-1656870679467-2e7e98ebf482?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZWF0aCUyMHZhbGxleSUyMHNhbmQlMjBkdW5lc3xlbnwxfHx8fDE3NjI5Mjc1MDd8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  "denali": "https://images.unsplash.com/photo-1689694085532-4f7c3d51a20d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5hbGklMjBtb3VudGFpbiUyMGFsYXNrYXxlbnwxfHx8fDE3NjI5MTgxNTh8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  "dry-tortugas": "https://images.unsplash.com/photo-1725329079863-03a4e086ded8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkcnklMjB0b3J0dWdhcyUyMGZvcnQlMjBqZWZmZXJzb258ZW58MXx8fHwxNzYyOTI3ODIwfDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "everglades": "https://images.unsplash.com/photo-1639418779045-68b6520fc732?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxldmVyZ2xhZGVzJTIwd2V0bGFuZHN8ZW58MXx8fHwxNzYyOTI3NTA3fDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "gates-arctic": "https://images.unsplash.com/photo-1577583916000-f87179b7d967?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnYXRlcyUyMGFyY3RpYyUyMGFsYXNrYSUyMHdpbGRlcm5lc3N8ZW58MXx8fHwxNzYyOTI3ODIwfDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "gateway-arch": "https://images.unsplash.com/photo-1666213847499-5f2ed4e972b7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnYXRld2F5JTIwYXJjaCUyMHN0JTIwbG91aXN8ZW58MXx8fHwxNzYyOTI3ODIxfDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "glacier": "https://images.unsplash.com/photo-1597098544686-5d6284eaeccd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnbGFjaWVyJTIwbmF0aW9uYWwlMjBwYXJrJTIwbW9udGFuYXxlbnwxfHx8fDE3NjI5Mjc1MDN8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  "glacier-bay": "https://images.unsplash.com/photo-1549402213-f13647c11c84?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnbGFjaWVyJTIwYmF5JTIwYWxhc2thfGVufDF8fHx8MTc2MjkyNzgyMXww&ixlib=rb-4.1.0&q=80&w=1080",
-  "grand-canyon": "https://images.unsplash.com/photo-1719859064507-bc77178c4eb2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxncmFuZCUyMGNhbnlvbiUyMGFyaXpvbmF8ZW58MXx8fHwxNzYyODc5Njc1fDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "grand-teton": "https://images.unsplash.com/photo-1627845652047-b03e2b59fe5a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxncmFuZCUyMHRldG9uJTIwbW91bnRhaW5zfGVufDF8fHx8MTc2MjkyNzUwNnww&ixlib=rb-4.1.0&q=80&w=1080",
-  "great-basin": "https://images.unsplash.com/photo-1659023695756-5311381658ce?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxncmVhdCUyMGJhc2luJTIwYnJpc3RsZWNvbmUlMjBwaW5lfGVufDF8fHx8MTc2MjkyNzgyMXww&ixlib=rb-4.1.0&q=80&w=1080",
-  "great-sand-dunes": "https://images.unsplash.com/photo-1615244896230-8fb51d91c3b6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxncmVhdCUyMHNhbmQlMjBkdW5lcyUyMGNvbG9yYWRvfGVufDF8fHx8MTc2MjkyNzgyMnww&ixlib=rb-4.1.0&q=80&w=1080",
-  "great-smoky": "https://images.unsplash.com/photo-1516117172878-fd2c41f4a759?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxncmVhdCUyMHNtb2t5JTIwbW91bnRhaW5zfGVufDF8fHx8MTc2MjkyNzUwNHww&ixlib=rb-4.1.0&q=80&w=1080",
-  "guadalupe-mountains": "https://images.unsplash.com/photo-1648224776132-163d99ca6b38?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxndWFkYWx1cGUlMjBtb3VudGFpbnMlMjB0ZXhhc3xlbnwxfHx8fDE3NjI5Mjc4MjJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  "haleakala": "https://images.unsplash.com/photo-1546527848-5f786ed0f030?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoYWxlYWthbGElMjBjcmF0ZXIlMjBoYXdhaWl8ZW58MXx8fHwxNzYyOTI3ODIyfDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "hawaii-volcanoes": "https://images.unsplash.com/photo-1704168382809-6f1ef716e884?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoYXdhaWklMjB2b2xjYW5vZXMlMjBsYXZhfGVufDF8fHx8MTc2MjkyNzgyNHww&ixlib=rb-4.1.0&q=80&w=1080",
-  "hot-springs": "https://images.unsplash.com/photo-1695149488901-bf67cbd1c616?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxob3QlMjBzcHJpbmdzJTIwYXJrYW5zYXMlMjBiYXRoaG91c2V8ZW58MXx8fHwxNzYyOTI3ODIzfDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "indiana-dunes": "https://images.unsplash.com/photo-1605245154655-43666255c29d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxpbmRpYW5hJTIwZHVuZXMlMjBsYWtlJTIwbWljaGlnYW58ZW58MXx8fHwxNzYyOTI3ODIzfDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "isle-royale": "https://images.unsplash.com/photo-1597687953947-2df10a5c9e7b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxpc2xlJTIwcm95YWxlJTIwbWljaGlnYW4lMjBsYWtlfGVufDF8fHx8MTc2MjkyNzgyNHww&ixlib=rb-4.1.0&q=80&w=1080",
-  "joshua-tree": "https://images.unsplash.com/photo-1686002836836-40fc999bbecf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxqb3NodWElMjB0cmVlJTIwZGVzZXJ0fGVufDF8fHx8MTc2MjkyNzUwNXww&ixlib=rb-4.1.0&q=80&w=1080",
-  "katmai": "https://images.unsplash.com/photo-1517103068540-6a70e8c0022f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxrYXRtYWklMjBiZWFycyUyMHNhbG1vbnxlbnwxfHx8fDE3NjI5Mjc4MjR8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  "kenai-fjords": "https://images.unsplash.com/photo-1626754150554-b0c5f01f0dd6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxrZW5haSUyMGZqb3JkcyUyMGdsYWNpZXJ8ZW58MXx8fHwxNzYyOTI3ODI1fDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "kings-canyon": "https://images.unsplash.com/photo-1669352311123-085520652a65?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxraW5ncyUyMGNhbnlvbiUyMGNhbGlmb3JuaWF8ZW58MXx8fHwxNzYyOTI3NTExfDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "kobuk-valley": "https://images.unsplash.com/photo-1548842402-fc17b264ecce?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxrb2J1ayUyMHZhbGxleSUyMHNhbmQlMjBkdW5lc3xlbnwxfHx8fDE3NjI5Mjc4MjV8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  "lake-clark": "https://images.unsplash.com/photo-1705869339742-f569122ac785?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsYWtlJTIwY2xhcmslMjBhbGFza2A8ZW58MXx8fHwxNzYyOTI3ODI1fDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "lassen-volcanic": "https://images.unsplash.com/photo-1653892065208-53c42d2c692e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsYXNzZW4lMjB2b2xjYW5pYyUyMGNhbGlmb3JuaWF8ZW58MXx8fHwxNzYyOTI3ODI2fDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "mammoth-cave": "https://images.unsplash.com/photo-1662494195774-66b8815e3dd6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtYW1tb3RoJTIwY2F2ZSUyMGZvcm1hdGlvbnN8ZW58MXx8fHwxNzYyOTI3NTExfDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "mesa-verde": "https://images.unsplash.com/photo-1623107061821-ee462b5c7ea5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtZXNhJTIwdmVyZGUlMjBjbGlmZiUyMGR3ZWxsaW5nc3xlbnwxfHx8fDE3NjI5Mjc1MTF8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  "mount-rainier": "https://images.unsplash.com/photo-1708732841412-346a7fe57813?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb3VudCUyMHJhaW5pZXIlMjB3aWxkZmxvd2Vyc3xlbnwxfHx8fDE3NjI5Mjc1MDh8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  "new-river-gorge": "https://images.unsplash.com/photo-1666214043271-c27f346d5a66?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxuZXclMjByaXZlciUyMGdvcmdlJTIwYnJpZGdlfGVufDF8fHx8MTc2MjkyNzgyNnww&ixlib=rb-4.1.0&q=80&w=1080",
-  "north-cascades": "https://images.unsplash.com/photo-1675026544266-0bf2fa9debdb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxub3J0aCUyMGNhc2NhZGVzJTIwbW91bnRhaW5zfGVufDF8fHx8MTc2MjkyNzgyNnww&ixlib=rb-4.1.0&q=80&w=1080",
-  "olympic": "https://images.unsplash.com/photo-1516572882656-dc5249697fc2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxvbHltcGljJTIwbmF0aW9uYWwlMjBwYXJrfGVufDF8fHx8MTc2MjkyNzUwNXww&ixlib=rb-4.1.0&q=80&w=1080",
-  "petrified-forest": "https://images.unsplash.com/photo-1605034514647-252d0ec86d1a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwZXRyaWZpZWQlMjBmb3Jlc3QlMjBhcml6b25hfGVufDF8fHx8MTc2MjkyNzUxMXww&ixlib=rb-4.1.0&q=80&w=1080",
-  "pinnacles": "https://images.unsplash.com/photo-1613063318748-257fe2c32374?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwaW5uYWNsZXMlMjBuYXRpb25hbCUyMHBhcmslMjBjYWxpZm9ybmlhfGVufDF8fHx8MTc2MjkyNzgyN3ww&ixlib=rb-4.1.0&q=80&w=1080",
-  "redwood": "https://images.unsplash.com/photo-1734186612777-beecc595797a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxyZWR3b29kJTIwdHJlZXMlMjBjYWxpZm9ybmlhfGVufDF8fHx8MTc2MjkyNzUxMHww&ixlib=rb-4.1.0&q=80&w=1080",
-  "rocky-mountain": "https://images.unsplash.com/photo-1600542158543-1faed2d1c05d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxyb2NreSUyMG1vdW50YWluJTIwbmF0aW9uYWwlMjBwYXJrfGVufDF8fHx8MTc2MjkyNzUwNHww&ixlib=rb-4.1.0&q=80&w=1080",
-  "saguaro": "https://images.unsplash.com/photo-1742146534755-d988fcbe6ec3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzYWd1YXJvJTIwY2FjdHVzJTIwYXJpem9uYXxlbnwxfHx8fDE3NjI5Mjc4Mjd8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  "sequoia": "https://images.unsplash.com/photo-1661047721684-2b0aba158bbc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzZXF1b2lhJTIwdHJlZXMlMjBnaWFudHxlbnwxfHx8fDE3NjI5Mjc1MDd8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  "shenandoah": "https://images.unsplash.com/photo-1634442795837-2ccd6c7d5f01?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzaGVuYW5kb2FoJTIwbW91bnRhaW5zJTIwdmlyZ2luaWF8ZW58MXx8fHwxNzYyOTI3NTA5fDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "theodore-roosevelt": "https://images.unsplash.com/photo-1596112849212-c5e23f4747e8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0aGVvZG9yZSUyMHJvb3NldmVsdCUyMGJhZGxhbmRzfGVufDF8fHx8MTc2MjkyNzgyN3ww&ixlib=rb-4.1.0&q=80&w=1080",
-  "virgin-islands": "https://images.unsplash.com/photo-1716997338016-93b456b3ea8f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aXJnaW4lMjBpc2xhbmRzJTIwYmVhY2glMjBjYXJpYmJlYW58ZW58MXx8fHwxNzYyOTI3ODI4fDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "voyageurs": "https://images.unsplash.com/photo-1649837456937-fe79d7889123?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2b3lhZ2V1cnMlMjBuYXRpb25hbCUyMHBhcmslMjBsYWtlfGVufDF8fHx8MTc2MjkyNzgyOHww&ixlib=rb-4.1.0&q=80&w=1080",
-  "white-sands": "https://images.unsplash.com/photo-1738202465232-380a31f86326?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3aGl0ZSUyMHNhbmRzJTIwbmV3JTIwbWV4aWNvfGVufDF8fHx8MTc2MjkyNzgyOHww&ixlib=rb-4.1.0&q=80&w=1080",
-  "wind-cave": "https://images.unsplash.com/photo-1600023989475-a90a185e1f19?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3aW5kJTIwY2F2ZSUyMHNvdXRoJTIwZGFrb3RhfGVufDF8fHx8MTc2MjkyNzgyOXww&ixlib=rb-4.1.0&q=80&w=1080",
-  "wrangell-st-elias": "https://images.unsplash.com/photo-1637055979530-305ce6d90554?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3cmFuZ2VsbCUyMHN0JTIwZWxpYXMlMjBhbGFza2A8ZW58MXx8fHwxNzYyOTI3ODI5fDA&ixlib=rb-4.1.0&q=80&w=1080",
-  "yellowstone": "https://images.unsplash.com/photo-1677116825823-97c47cf7b33c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5ZWxsb3dzdG9uZSUyMGdleXNlcnxlbnwxfHx8fDE3NjI4ODQxMzd8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  "yosemite": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3NlbWl0ZSUyMHZhbGxleXxlbnwxfHx8fDE3NjI4Nzk2NzZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  "zion": "https://images.unsplash.com/photo-1443632864897-14973fa006cf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx6aW9uJTIwbmF0aW9uYWwlMjBwYXJrfGVufDF8fHx8MTc2Mjg2NTYwNnww&ixlib=rb-4.1.0&q=80&w=1080",
-};
 
 type FilterType = "all" | "visited" | "to-go";
 type SortType = "alphabetical" | "state" | "distance";
-type AuthState = "loading" | "auth-screen" | "app";
-
-interface ParkData {
-  visited: boolean;
-  note: string;
-  visitedDate?: string;
-  photoUrl?: string;
-}
-
-const GUEST_KEY = "parkpal_guest_mode";
 
 export default function App() {
-  const [authState, setAuthState] = useState<AuthState>("loading");
-  const [user, setUser] = useState<User | null>(null);
-  const [isGuest, setIsGuest] = useState(false);
+  const { authState, user, isGuest, continueAsGuest, signOut, goToAuthScreen } = useAuth();
+  const {
+    parkData,
+    headerImageOverrides,
+    dataLoading,
+    saveError,
+    toggleVisited,
+    updateParkNote,
+    updateParkDate,
+    updateParkPhoto,
+    updateHeaderImage,
+    resetParkData,
+    clearSaveError,
+  } = useParkData({ active: authState === "app", user, isGuest });
 
-  const [parkData, setParkData] = useState<Map<string, ParkData>>(new Map());
   const [filter, setFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -148,7 +85,7 @@ export default function App() {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-  const [dataLoading, setDataLoading] = useState(false);
+
   const [sortOrder, setSortOrder] = useState<SortType>("alphabetical");
   const [openParkId, setOpenParkId] = useState<string | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -159,13 +96,6 @@ export default function App() {
   const [nearestPark, setNearestPark] = useState<{ park: (typeof nationalParks)[0]; distanceMiles: number } | null>(null);
   const [nearestDialogOpen, setNearestDialogOpen] = useState(false);
   const [routeFinderOpen, setRouteFinderOpen] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [headerImageOverrides, setHeaderImageOverrides] = useState<Map<string, string>>(() => {
-    try {
-      const stored = localStorage.getItem("parkpal_header_images");
-      return stored ? new Map(Object.entries(JSON.parse(stored))) : new Map();
-    } catch { return new Map(); }
-  });
 
   // ── Filtered/sorted park list ─────────────────────────────────────────────
   const filteredParks = useMemo(() => {
@@ -193,179 +123,6 @@ export default function App() {
       });
   }, [parkData, filter, searchQuery, sortOrder, userCoords]);
 
-  // ── Auth listener ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user);
-        setAuthState("app");
-      } else if (localStorage.getItem(GUEST_KEY)) {
-        setIsGuest(true);
-        setAuthState("app");
-      } else {
-        setAuthState("auth-screen");
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-        setIsGuest(false);
-        setAuthState("app");
-      } else if (!localStorage.getItem(GUEST_KEY)) {
-        setUser(null);
-        setAuthState("auth-screen");
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // ── Load data when entering app ───────────────────────────────────────────
-  useEffect(() => {
-    if (authState !== "app") return;
-
-    const load = async () => {
-      setDataLoading(true);
-
-      if (user) {
-        // Load from Supabase
-        const { data, error } = await supabase
-          .from("park_visits")
-          .select("park_id, visited, note, visited_date, photo_url, header_photo_url")
-          .eq("user_id", user.id);
-
-        if (error) {
-          console.error("Supabase load error:", error);
-          setSaveError(`Failed to load your data: ${error.message}`);
-        } else if (data) {
-          const map = new Map<string, ParkData>();
-          const headerOverrides = new Map<string, string>();
-          for (const row of data) {
-            if (row.visited) {
-              map.set(row.park_id, {
-                visited: row.visited,
-                note: row.note ?? "",
-                visitedDate: row.visited_date ?? undefined,
-                photoUrl: row.photo_url ?? undefined,
-              });
-            }
-            if (row.header_photo_url) {
-              headerOverrides.set(row.park_id, row.header_photo_url);
-            }
-          }
-          setParkData(map);
-          setHeaderImageOverrides(headerOverrides);
-        }
-      } else {
-        // Guest: load from localStorage
-        const local = localStorage.getItem("parkData_guest");
-        if (local) {
-          try {
-            setParkData(new Map(Object.entries(JSON.parse(local))));
-          } catch { /* ignore */ }
-        }
-      }
-
-      setDataLoading(false);
-    };
-
-    load();
-  }, [authState, user]);
-
-  // ── Persist guest data to localStorage ───────────────────────────────────
-  useEffect(() => {
-    if (!isGuest || dataLoading) return;
-    localStorage.setItem("parkData_guest", JSON.stringify(Object.fromEntries(parkData)));
-  }, [parkData, isGuest, dataLoading]);
-
-  // ── Supabase upsert helper ────────────────────────────────────────────────
-  const upsertPark = useCallback(async (parkId: string, data: ParkData) => {
-    if (!user) return;
-    const { error } = await supabase.from("park_visits").upsert({
-      user_id: user.id,
-      park_id: parkId,
-      visited: data.visited,
-      note: data.note,
-      visited_date: data.visitedDate ?? null,
-      photo_url: data.photoUrl || null,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "user_id,park_id" });
-    if (error) {
-      console.error("Supabase upsert error:", error);
-      setSaveError(`Failed to save: ${error.message}`);
-    }
-  }, [user]);
-
-  // ── Park data mutations ───────────────────────────────────────────────────
-  const toggleVisited = useCallback(async (parkId: string) => {
-    const current = parkData.get(parkId);
-    if (current?.visited) {
-      setParkData((prev) => { const next = new Map(prev); next.delete(parkId); return next; });
-      if (user) {
-        const { error } = await supabase.from("park_visits").delete().match({ user_id: user.id, park_id: parkId });
-        if (error) {
-          console.error("Supabase delete error:", error);
-          setSaveError(`Failed to save: ${error.message}`);
-        }
-      }
-    } else {
-      const updated: ParkData = { visited: true, note: current?.note ?? "", visitedDate: current?.visitedDate };
-      setParkData((prev) => { const next = new Map(prev); next.set(parkId, updated); return next; });
-      upsertPark(parkId, updated);
-    }
-  }, [user, parkData, upsertPark]);
-
-  const updateParkNote = useCallback((parkId: string, note: string) => {
-    const current = parkData.get(parkId);
-    if (!current?.visited) return;
-    const updated = { ...current, note };
-    setParkData((prev) => { const next = new Map(prev); next.set(parkId, updated); return next; });
-    upsertPark(parkId, updated);
-  }, [parkData, upsertPark]);
-
-  const updateParkDate = useCallback((parkId: string, date: string) => {
-    const current = parkData.get(parkId);
-    if (!current?.visited) return;
-    const updated = { ...current, visitedDate: date };
-    setParkData((prev) => { const next = new Map(prev); next.set(parkId, updated); return next; });
-    upsertPark(parkId, updated);
-  }, [parkData, upsertPark]);
-
-  const updateParkPhoto = useCallback((parkId: string, photoUrl: string) => {
-    const current = parkData.get(parkId);
-    if (!current?.visited) return;
-    const updated = { ...current, photoUrl: photoUrl || undefined };
-    setParkData((prev) => { const next = new Map(prev); next.set(parkId, updated); return next; });
-    upsertPark(parkId, updated);
-  }, [parkData, upsertPark]);
-
-  const upsertHeaderImage = useCallback(async (parkId: string, url: string) => {
-    if (!user) return;
-    const { error } = await supabase.from("park_visits").upsert({
-      user_id: user.id,
-      park_id: parkId,
-      header_photo_url: url,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "user_id,park_id" });
-    if (error) {
-      console.error("Header image upsert error:", error);
-      setSaveError(`Failed to save header image: ${error.message}`);
-    }
-  }, [user]);
-
-  const updateHeaderImage = useCallback((parkId: string, url: string) => {
-    setHeaderImageOverrides((prev) => { const next = new Map(prev); next.set(parkId, url); return next; });
-    upsertHeaderImage(parkId, url);
-  }, [upsertHeaderImage]);
-
-  // ── Persist header image overrides to localStorage ────────────────────────
-  useEffect(() => {
-    localStorage.setItem("parkpal_header_images", JSON.stringify(Object.fromEntries(headerImageOverrides)));
-  }, [headerImageOverrides]);
-
-
   useEffect(() => {
     if (userMenuOpen && user) {
       setUsernameValue(user.user_metadata?.username || user.email?.split("@")[0] || "");
@@ -380,20 +137,8 @@ export default function App() {
   };
 
   const handleSignOut = async () => {
-    localStorage.removeItem(GUEST_KEY);
-    setIsGuest(false);
-    setParkData(new Map());
-    if (user) {
-      await supabase.auth.signOut();
-    } else {
-      setAuthState("auth-screen");
-    }
-  };
-
-  const handleContinueAsGuest = () => {
-    localStorage.setItem(GUEST_KEY, "1");
-    setIsGuest(true);
-    setAuthState("app");
+    resetParkData();
+    await signOut();
   };
 
   const handleFindNearest = () => {
@@ -441,7 +186,7 @@ export default function App() {
   }
 
   if (authState === "auth-screen") {
-    return <AuthScreen onContinueAsGuest={handleContinueAsGuest} />;
+    return <AuthScreen onContinueAsGuest={continueAsGuest} />;
   }
 
   // ── Main app ──────────────────────────────────────────────────────────────
@@ -585,7 +330,7 @@ export default function App() {
                     {isGuest ? (
                       <Button
                         variant="outline"
-                        onClick={() => { setUserMenuOpen(false); setAuthState("auth-screen"); }}
+                        onClick={() => { setUserMenuOpen(false); goToAuthScreen(); }}
                         className="w-full h-11 rounded-[4px] text-lg font-semibold border-gray-400 gap-2"
                       >
                         <LogIn className="w-5 h-5 text-gray-500" />
@@ -786,7 +531,7 @@ export default function App() {
               <p className="text-xs text-red-600 mt-0.5 font-mono break-all">{saveError}</p>
             </div>
             <button
-              onClick={() => setSaveError(null)}
+              onClick={clearSaveError}
               className="flex-shrink-0 text-red-400 hover:text-red-600 transition-colors"
               aria-label="Dismiss"
             >
@@ -803,7 +548,7 @@ export default function App() {
               You're browsing as a <span className="font-semibold">guest</span> — your data is saved locally on this device only.
             </p>
             <button
-              onClick={() => setAuthState("auth-screen")}
+              onClick={goToAuthScreen}
               className="flex-shrink-0 text-sm font-semibold text-amber-700 hover:text-amber-900 underline underline-offset-2 transition-colors"
             >
               Sign in
