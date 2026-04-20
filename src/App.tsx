@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from "react";
 import type { User } from "@supabase/supabase-js";
 import NationalParkCard from "./components/NationalParkCard";
 import AuthScreen from "./components/AuthScreen";
 import { nationalParks } from "./data/nationalParks";
 import { Button } from "./components/ui/button";
-import { Input } from "./components/ui/input";
 import { Progress } from "./components/ui/progress";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./components/ui/dialog";
 import { Drawer, DrawerContent } from "./components/ui/drawer";
@@ -12,9 +11,10 @@ import { Search, X, Map as MapIcon, CircleUser, LocateFixed, Loader2, AlertCircl
 import { supabase } from "./utils/supabase/client";
 import { ButtonStandard } from "./components/ButtonStandard";
 import NounNationalPark from "./imports/NounNationalPark19895091";
-import RouteFinder from "./components/RouteFinder";
 
-const GOOGLE_MAPS_API_KEY = "AIzaSyDljWXxLD0ofXyh00bCYNtF1cW4YOXm48k";
+const RouteFinder = lazy(() => import("./components/RouteFinder"));
+
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
 function haversineDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 3959;
@@ -168,28 +168,30 @@ export default function App() {
   });
 
   // ── Filtered/sorted park list ─────────────────────────────────────────────
-  const filteredParks = nationalParks
-    .filter((park) => {
-      const isVisited = parkData.get(park.id)?.visited || false;
-      if (filter === "visited" && !isVisited) return false;
-      if (filter === "to-go" && isVisited) return false;
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const text = [park.name, park.state, park.description, ...park.facts, ...park.trivia].join(" ").toLowerCase();
-        return text.includes(query);
-      }
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortOrder === "distance" && userCoords) {
-        const da = haversineDistanceMiles(userCoords.lat, userCoords.lng, a.lat, a.lng);
-        const db = haversineDistanceMiles(userCoords.lat, userCoords.lng, b.lat, b.lng);
-        return da - db;
-      }
-      if (sortOrder === "alphabetical" || (sortOrder === "distance" && !userCoords)) return a.name.localeCompare(b.name);
-      const sc = a.state.localeCompare(b.state);
-      return sc !== 0 ? sc : a.name.localeCompare(b.name);
-    });
+  const filteredParks = useMemo(() => {
+    return nationalParks
+      .filter((park) => {
+        const isVisited = parkData.get(park.id)?.visited || false;
+        if (filter === "visited" && !isVisited) return false;
+        if (filter === "to-go" && isVisited) return false;
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          const text = [park.name, park.state, park.description, ...park.facts, ...park.trivia].join(" ").toLowerCase();
+          return text.includes(query);
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortOrder === "distance" && userCoords) {
+          const da = haversineDistanceMiles(userCoords.lat, userCoords.lng, a.lat, a.lng);
+          const db = haversineDistanceMiles(userCoords.lat, userCoords.lng, b.lat, b.lng);
+          return da - db;
+        }
+        if (sortOrder === "alphabetical" || (sortOrder === "distance" && !userCoords)) return a.name.localeCompare(b.name);
+        const sc = a.state.localeCompare(b.state);
+        return sc !== 0 ? sc : a.name.localeCompare(b.name);
+      });
+  }, [parkData, filter, searchQuery, sortOrder, userCoords]);
 
   // ── Auth listener ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -484,17 +486,21 @@ export default function App() {
               </div>
             </div>
 
-            <RouteFinder
-              open={routeFinderOpen}
-              onOpenChange={setRouteFinderOpen}
-              apiKey={GOOGLE_MAPS_API_KEY}
-              userId={user?.id ?? null}
-              onSelectPark={(parkId) => {
-                setFilter("all");
-                setSearchQuery("");
-                setOpenParkId(parkId);
-              }}
-            />
+            {routeFinderOpen && (
+              <Suspense fallback={null}>
+                <RouteFinder
+                  open={routeFinderOpen}
+                  onOpenChange={setRouteFinderOpen}
+                  apiKey={GOOGLE_MAPS_API_KEY}
+                  userId={user?.id ?? null}
+                  onSelectPark={(parkId) => {
+                    setFilter("all");
+                    setSearchQuery("");
+                    setOpenParkId(parkId);
+                  }}
+                />
+              </Suspense>
+            )}
 
             {/* User profile page */}
             <Drawer open={userMenuOpen} onOpenChange={setUserMenuOpen} modal={false}>
