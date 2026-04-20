@@ -15,23 +15,39 @@ There are no tests configured in this project.
 
 ParkPal is a PWA for tracking visits to US national parks. It uses React 19, TypeScript, Vite 7, Tailwind CSS v4, and Supabase for auth and data storage.
 
+### Environment
+
+Secrets live in `.env.local` (gitignored via `*.local`) and are read through `import.meta.env`:
+
+- `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` — consumed by `src/utils/supabase/client.ts`; `createClient` throws at startup if either is missing.
+- `VITE_GOOGLE_MAPS_API_KEY` — consumed by `src/App.tsx` and forwarded to the `RouteFinder` component.
+- `VITE_UNSPLASH_ACCESS_KEY` — consumed by `NationalParkCard.tsx` for the photo-swap UI.
+
 ### Key files
 
-- `src/App.tsx` — Main application component. Contains all top-level state, auth flow, park filtering/sorting, geolocation, visit tracking logic, and renders the park grid. This is a large single-file component (~600 lines).
-- `src/components/AuthScreen.tsx` — Email/password sign-in and sign-up screen with guest mode.
-- `src/components/NationalParkCard.tsx` — Individual park card with visit toggling, notes, date picker, photo upload (via Supabase storage), and detail drawer/dialog.
-- `src/utils/supabase/client.ts` — Supabase client initialization and `ParkVisitRow` type definition.
+- `src/App.tsx` — Top-level page component (~595 lines). Owns filter/sort UI state, scroll-aware header, geolocation/nearest-park dialog, user-profile drawer, and route-finder gating. Delegates auth and park-visit state to hooks.
+- `src/hooks/useAuth.ts` — Session bootstrap, `onAuthStateChange` listener, and `continueAsGuest` / `signOut` / `goToAuthScreen` helpers. Owns `authState`, `user`, `isGuest`.
+- `src/hooks/useParkData.ts` — Park-visit state (`parkData`, `headerImageOverrides`), Supabase load/upsert/delete, guest `localStorage` persistence, and mutation helpers (`toggleVisited`, `updateParkNote`, `updateParkDate`, `updateParkPhoto`, `updateHeaderImage`, `resetParkData`, `clearSaveError`). Exposes `ParkData` type.
+- `src/components/AuthScreen.tsx` — Email/password sign-in and sign-up screen with guest mode entry.
+- `src/components/NationalParkCard.tsx` — Individual park card with visit toggling, notes, date picker, photo upload (Supabase storage), Unsplash photo-swap, and detail drawer/dialog.
+- `src/components/RouteFinder.tsx` — Drawer that fetches Google Directions and finds parks along a route. Lazy-loaded in `App.tsx` so the `@googlemaps/js-api-loader` bundle only ships when the user opens the drawer.
+- `src/components/AddressAutocomplete.tsx` — Google Places autocomplete input used inside `RouteFinder`.
+- `src/utils/supabase/client.ts` — Supabase client initialization; exports `ParkVisitRow` and `SavedRouteRow` types.
+- `src/utils/route.ts` — Polyline encode/decode, corridor-based park matching, and Routes API fetching.
 
 ### Data layer
 
 - Park data is static in `src/data/nationalParks.ts` (all 63 parks with coordinates, descriptions, facts, trivia).
-- Supporting data: `parkAbbreviations.ts`, `stateAbbreviations.ts`, `parkThumbnails.ts`.
-- Park images are hardcoded Unsplash URLs in `App.tsx` (`parkImages` record).
-- Visit data (visited status, notes, dates, photos) is stored in Supabase and synced per-user.
+- `src/data/parkImages.ts` — header image URL per park id (Unsplash).
+- `src/data/parkThumbnails.ts` — 4 Unsplash thumbnails per park id, rendered inside `NationalParkCard`.
+- `src/data/parkAbbreviations.ts`, `src/data/stateAbbreviations.ts` — display-name shorteners.
+- Visit data (visited status, notes, dates, photos) is stored in Supabase (`park_visits` table) and synced per-user. Guests persist to `localStorage` under `parkData_guest` / `parkpal_header_images`.
+- Saved routes are stored in the `saved_routes` Supabase table for signed-in users.
 
 ### UI
 
 - UI primitives are shadcn/ui components in `src/components/ui/` (button, input, dialog, drawer, calendar, etc.) using Radix UI + `class-variance-authority`.
+- `buttonVariants` lives in `src/components/ui/button-variants.ts` so `button.tsx` only exports a component (required for React Fast Refresh).
 - Path alias: `@/` maps to `src/`.
 - CSS variables for theming are defined in `src/index.css` with light/dark mode support.
 - Icons from `lucide-react`.
