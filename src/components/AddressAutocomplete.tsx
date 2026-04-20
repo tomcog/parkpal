@@ -50,21 +50,21 @@ export default function AddressAutocomplete({
   onEnter,
 }: AddressAutocompleteProps) {
   const [suggestions, setSuggestions] = useState<DisplaySuggestion[]>([]);
-  const [open, setOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   // Track whether the latest value change came from a user keystroke vs.
   // programmatic (e.g. selection): we only want to fetch on keystrokes.
   const userEditedRef = useRef(false);
 
-  // Debounced fetch.
+  // Dropdown is derived, not stored, so the fetch effect doesn't need to
+  // synchronously clear state when the input empties.
+  const open = !dismissed && value.trim().length > 0 && suggestions.length > 0;
+
+  // Debounced fetch — runs only for non-empty user keystrokes.
   useEffect(() => {
     if (!userEditedRef.current) return;
-    if (!value.trim()) {
-      setSuggestions([]);
-      setOpen(false);
-      return;
-    }
+    if (!value.trim()) return;
 
     let cancelled = false;
     const handle = setTimeout(async () => {
@@ -89,7 +89,6 @@ export default function AddressAutocomplete({
           });
         }
         setSuggestions(display);
-        setOpen(display.length > 0);
         setHighlightedIndex(-1);
       } catch (e) {
         console.error("[AddressAutocomplete] fetch failed:", e);
@@ -106,7 +105,7 @@ export default function AddressAutocomplete({
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
+      if (!containerRef.current?.contains(e.target as Node)) setDismissed(true);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -123,7 +122,7 @@ export default function AddressAutocomplete({
         userEditedRef.current = false;
         onChange(formatted);
         setSuggestions([]);
-        setOpen(false);
+        setDismissed(true);
         setHighlightedIndex(-1);
         // Start a new session for the next autocomplete.
         if (placesLib) {
@@ -145,9 +144,10 @@ export default function AddressAutocomplete({
         value={value}
         onChange={(e) => {
           userEditedRef.current = true;
+          setDismissed(false);
           onChange(e.target.value);
         }}
-        onFocus={() => suggestions.length > 0 && setOpen(true)}
+        onFocus={() => setDismissed(false)}
         onKeyDown={(e) => {
           if (e.key === "ArrowDown") {
             e.preventDefault();
@@ -163,7 +163,7 @@ export default function AddressAutocomplete({
               onEnter?.();
             }
           } else if (e.key === "Escape") {
-            setOpen(false);
+            setDismissed(true);
           }
         }}
         placeholder={placeholder}

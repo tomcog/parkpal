@@ -123,12 +123,13 @@ export default function App() {
       });
   }, [parkData, filter, searchQuery, sortOrder, userCoords]);
 
-  useEffect(() => {
-    if (userMenuOpen && user) {
+  const openUserMenu = () => {
+    if (user) {
       setUsernameValue(user.user_metadata?.username || user.email?.split("@")[0] || "");
       setEditingUsername(false);
     }
-  }, [userMenuOpen, user]);
+    setUserMenuOpen(true);
+  };
 
   const handleSaveUsername = async () => {
     setEditingUsername(false);
@@ -222,7 +223,7 @@ export default function App() {
                   <RouteIcon className="w-6 h-6" />
                 </button>
                 <button
-                  onClick={() => setUserMenuOpen(true)}
+                  onClick={openUserMenu}
                   className={`p-1 transition-colors ${isGuest ? "text-amber-500 hover:text-amber-600" : "text-gray-400 hover:text-brand-accent"}`}
                   aria-label="Account"
                 >
