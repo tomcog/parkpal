@@ -1,5 +1,5 @@
 import { MapPin, X, Calendar, Camera, Loader2, SwitchCamera, RefreshCw, ImageUp } from "lucide-react";
-import { useState, useRef } from "react";
+import { memo, useState, useRef, lazy, Suspense } from "react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle, DrawerTrigger } from "./ui/drawer";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./ui/dialog";
@@ -8,12 +8,14 @@ import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
-import { Calendar as CalendarComponent } from "./ui/calendar";
 import { parkAbbreviations } from "../data/parkAbbreviations";
 import { stateAbbreviations } from "../data/stateAbbreviations";
 import { parkThumbnails } from "../data/parkThumbnails";
 import { format } from "date-fns";
 import { supabase } from "../utils/supabase/client";
+import { resizeUnsplashUrl } from "../utils/imageSize";
+
+const CalendarComponent = lazy(() => import("./ui/calendar").then((m) => ({ default: m.Calendar })));
 
 interface NationalParkCardProps {
   id: string;
@@ -39,7 +41,7 @@ interface NationalParkCardProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export default function NationalParkCard({
+function NationalParkCardInner({
   id,
   name,
   state,
@@ -284,7 +286,9 @@ export default function NationalParkCard({
               <ImageWithFallback
                 alt={name}
                 className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
-                src={imageUrl}
+                src={resizeUnsplashUrl(imageUrl, 480)}
+                loading="lazy"
+                decoding="async"
               />
               {isVisited && (
                 <Badge className="absolute top-[12px] right-[12px] bg-brand-accent text-white border-none rounded-full text-[1.15em]">
@@ -310,7 +314,8 @@ export default function NationalParkCard({
                 <ImageWithFallback
                   alt={name}
                   className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
-                  src={imageUrl}
+                  src={resizeUnsplashUrl(imageUrl, 800)}
+                  decoding="async"
                 />
                 <div className="absolute bottom-[-12px] left-0 w-full px-4 text-white font-bold text-[72px] text-right leading-none">
                   {parkAbbreviations[id]?.toUpperCase() || ""} {stateAbbreviations[state]?.toUpperCase() || ""}
@@ -390,17 +395,19 @@ export default function NationalParkCard({
                       <DialogContent className="w-auto max-w-fit p-0 top-[254px] translate-y-0 [&>button]:hidden">
                         <DialogTitle className="sr-only">Select Visit Date</DialogTitle>
                         <DialogDescription className="sr-only">Choose the date you visited {name}</DialogDescription>
-                        <CalendarComponent
-                          mode="single"
-                          selected={visitedDate ? new Date(visitedDate) : undefined}
-                          onSelect={(date) => {
-                            if (date) {
-                              onUpdateDate(id, date.toISOString());
-                              setCalendarOpen(false);
-                            }
-                          }}
-                          initialFocus
-                        />
+                        <Suspense fallback={<div className="w-[280px] h-[320px] flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>}>
+                          <CalendarComponent
+                            mode="single"
+                            selected={visitedDate ? new Date(visitedDate) : undefined}
+                            onSelect={(date) => {
+                              if (date) {
+                                onUpdateDate(id, date.toISOString());
+                                setCalendarOpen(false);
+                              }
+                            }}
+                            initialFocus
+                          />
+                        </Suspense>
                       </DialogContent>
                     </Dialog>
                   </div>
@@ -445,7 +452,7 @@ export default function NationalParkCard({
                     className="mb-4 relative rounded-md overflow-hidden aspect-video w-full bg-gray-100 border border-gray-200 cursor-zoom-in group"
                     onClick={() => setLightboxOpen(true)}
                   >
-                    <img src={photoUrl} alt={`My photo from ${name}`} className="w-full h-full object-cover" />
+                    <img src={photoUrl} alt={`My photo from ${name}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                   </div>
 
@@ -454,7 +461,7 @@ export default function NationalParkCard({
                       <DialogTitle className="sr-only">Photo from {name}</DialogTitle>
                       <DialogDescription className="sr-only">Full screen view of your uploaded photo</DialogDescription>
                       <div className="w-full h-full flex items-center justify-center p-4" onClick={() => setLightboxOpen(false)}>
-                        <img src={photoUrl} alt={`My photo from ${name}`} className="max-w-full max-h-full object-contain shadow-2xl rounded-sm" onClick={(e) => e.stopPropagation()} />
+                        <img src={photoUrl} alt={`My photo from ${name}`} className="max-w-full max-h-full object-contain shadow-2xl rounded-sm" onClick={(e) => e.stopPropagation()} decoding="async" />
                       </div>
                     </DialogContent>
                   </Dialog>
@@ -526,7 +533,13 @@ export default function NationalParkCard({
               <div className="flex flex-col gap-4">
                 {galleryPhotos.map((url, index) => (
                   <div key={index} className="w-full overflow-hidden rounded-md">
-                    <img src={url} alt={`${name} photo ${index + 1}`} className="object-cover w-full h-auto" />
+                    <img
+                      src={resizeUnsplashUrl(url, 720)}
+                      alt={`${name} photo ${index + 1}`}
+                      className="object-cover w-full h-auto"
+                      loading="lazy"
+                      decoding="async"
+                    />
                   </div>
                 ))}
               </div>
@@ -558,7 +571,7 @@ export default function NationalParkCard({
                 onClick={() => { onUpdateHeaderImage(id, url); setPhotoPickerOpen(false); }}
                 className={`aspect-video rounded-md overflow-hidden transition-all hover:ring-2 ring-brand-accent ${imageUrl === url ? "ring-2" : ""}`}
               >
-                <img src={url} alt={`${name} photo option ${i + 1}`} className="w-full h-full object-cover" />
+                <img src={resizeUnsplashUrl(url, 360)} alt={`${name} photo option ${i + 1}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
               </button>
             ))}
           </div>
@@ -573,3 +586,6 @@ export default function NationalParkCard({
     </>
   );
 }
+
+const NationalParkCard = memo(NationalParkCardInner);
+export default NationalParkCard;
