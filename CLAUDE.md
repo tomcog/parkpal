@@ -60,7 +60,7 @@ Secrets live in `.env.local` (gitignored via `*.local`) and are read through `im
 
 ### PWA
 
-Configured via `vite-plugin-pwa` in `vite.config.ts` with auto-update service worker and manifest for standalone mobile install.
+Configured via `vite-plugin-pwa` in `vite.config.ts` with `registerType: 'prompt'` and a manifest for standalone mobile install. `src/components/UpdateToast.tsx` uses `useRegisterSW` (from `virtual:pwa-register/react`) to show a "new version available" toast when the service worker fetches a new build; `updateServiceWorker(true)` activates it and reloads. The toast only fires on production PWA builds, not under `npm run dev`. Types for the virtual module come from `vite-plugin-pwa/react` in `tsconfig.app.json`.
 
 `workbox.runtimeCaching` caches Unsplash images (CacheFirst) and Supabase `park-photos` bucket URLs (StaleWhileRevalidate) so already-viewed park artwork works offline.
 
