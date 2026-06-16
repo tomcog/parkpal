@@ -7,7 +7,8 @@ import { Button } from "./components/ui/button";
 import { Progress } from "./components/ui/progress";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./components/ui/dialog";
 import { Drawer, DrawerContent } from "./components/ui/drawer";
-import { Search, X, Map as MapIcon, CircleUser, LocateFixed, Loader2, AlertCircle, PencilLine, LogIn, LogOut, Route as RouteIcon } from "lucide-react";
+import { Popover, PopoverTrigger, PopoverContent } from "./components/ui/popover";
+import { Search, X, Map as MapIcon, CircleUser, LocateFixed, Loader2, AlertCircle, PencilLine, LogIn, LogOut, Route as RouteIcon, Check, ChevronDown } from "lucide-react";
 import { supabase } from "./utils/supabase/client";
 import { ButtonStandard } from "./components/ButtonStandard";
 import NounNationalPark from "./imports/NounNationalPark19895091";
@@ -420,71 +421,86 @@ export default function App() {
                   className="w-full h-[44px] pl-[42px] pr-3 bg-[#f3f3f5] border border-transparent rounded-[4px] text-[16px] text-[#0a0a0a] placeholder:text-[#99A1AF] focus:outline-none focus:border-brand-accent focus:bg-white transition-colors"
                 />
               </div>
-              <ButtonStandard
-                onClick={() => {
-                  if (sortOrder === "alphabetical") {
-                    setSortOrder("state");
-                  } else if (sortOrder === "state") {
-                    setSortOrder("distance");
-                    if (!userCoords && navigator.geolocation) {
-                      setLocating(true);
-                      navigator.geolocation.getCurrentPosition(
-                        ({ coords: { latitude, longitude } }) => {
-                          setUserCoords({ lat: latitude, lng: longitude });
-                          setLocating(false);
-                        },
-                        () => setLocating(false),
-                        { enableHighAccuracy: false, timeout: 10000 }
-                      );
-                    }
-                  } else {
-                    setSortOrder("alphabetical");
-                  }
-                }}
-                theme="white"
-                icon={sortOrder === "state" ? (
-                  <MapIcon className="w-5 h-5 text-[#99A1AF]" />
-                ) : sortOrder === "distance" ? (
-                  <LocateFixed className="w-5 h-5 text-[#99A1AF]" />
-                ) : (
-                  <svg viewBox="0 0 16.167 15.334" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-4 h-4">
+              {(() => {
+                const AzIcon = ({ className }: { className?: string }) => (
+                  <svg viewBox="0 0 16.167 15.334" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
                     <path d="M15.3104 8.34473C15.6399 8.39267 15.9282 8.60289 16.0722 8.91016C16.2364 9.26141 16.1827 9.6767 15.9345 9.97461L13.1356 13.334H15.1669C15.7189 13.3343 16.1669 13.7819 16.1669 14.334C16.1667 14.8859 15.7188 15.3337 15.1669 15.334H10.9999C10.612 15.334 10.2593 15.109 10.0946 14.7578C9.93014 14.4065 9.98304 13.9914 10.2313 13.6934L13.0311 10.334H10.9999C10.4477 10.334 10.0001 9.88612 9.9999 9.33398C9.9999 8.7817 10.4476 8.33398 10.9999 8.33398H15.1669L15.3104 8.34473ZM4.3329 0C4.88508 0 5.33273 0.447865 5.3329 1V11.9189L6.95986 10.293C7.3504 9.9029 7.98354 9.90264 8.37392 10.293C8.76414 10.6834 8.76396 11.3165 8.37392 11.707L5.03994 15.04C5.01612 15.0639 4.99085 15.0861 4.96474 15.1074C4.92768 15.1378 4.88859 15.1643 4.84853 15.1885C4.7775 15.2314 4.70114 15.2657 4.62001 15.29C4.61061 15.2929 4.60116 15.2953 4.59169 15.2979C4.57004 15.3036 4.54847 15.3101 4.52626 15.3145C4.39735 15.3398 4.26447 15.3393 4.13564 15.3135C4.12344 15.311 4.11154 15.3076 4.09951 15.3047C4.07886 15.2998 4.05834 15.2944 4.03798 15.2881C4.02475 15.284 4.01191 15.279 3.99892 15.2744C3.98388 15.2691 3.96882 15.2639 3.954 15.2578C3.93004 15.248 3.90667 15.2372 3.88369 15.2256C3.87758 15.2225 3.87119 15.22 3.86513 15.2168C3.85391 15.2108 3.84289 15.2046 3.83193 15.1982C3.78624 15.1717 3.742 15.1418 3.70009 15.1074C3.6742 15.0862 3.6495 15.0637 3.62587 15.04L0.292865 11.707C-0.0976031 11.3165 -0.0976404 10.6835 0.292865 10.293C0.683393 9.90273 1.31649 9.90259 1.70693 10.293L3.3329 11.9189V1C3.33308 0.447902 3.78078 6.05239e-05 4.3329 0ZM13.0829 0C13.9006 5.66018e-05 14.6854 0.325168 15.2636 0.90332C15.8416 1.48139 16.1667 2.26557 16.1669 3.08301V6C16.1669 6.5521 15.7189 6.99971 15.1669 7C14.6146 7 14.1669 6.55228 14.1669 6V5.33398H11.9999V6C11.9999 6.55221 11.5521 6.99988 10.9999 7C10.4476 7 9.9999 6.55228 9.9999 6V3.08301C10.0001 2.26549 10.3251 1.4814 10.9032 0.90332C11.4814 0.325328 12.2654 8.61697e-05 13.0829 0ZM13.0829 2C12.7958 2.00009 12.5203 2.11446 12.3173 2.31738C12.1143 2.52039 12.0001 2.79592 11.9999 3.08301V3.33398H14.1669V3.08301C14.1667 2.796 14.0524 2.52038 13.8495 2.31738C13.6464 2.1143 13.3701 2.00006 13.0829 2Z" fill="#99A1AF"/>
                   </svg>
-                )}
-                className="w-[44px] px-0 flex-shrink-0"
-                title={sortOrder === "alphabetical" ? "Sort by State" : sortOrder === "state" ? "Sort by Distance" : "Sort A-Z"}
-              />
-              <ButtonStandard
-                onClick={() => { if (filter === "all") setFilter("visited"); else if (filter === "visited") setFilter("to-go"); else setFilter("all"); }}
-                theme="white"
-                icon={
-                  filter === "all" ? (
-                    <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none">
-                      <rect x="8" y="3" width="10.5" height="2" rx="1" fill="#99A1AF"/>
-                      <rect x="8" y="9" width="10.5" height="2" rx="1" fill="#99A1AF"/>
-                      <rect x="8" y="15" width="10.5" height="2" rx="1" fill="#99A1AF"/>
-                      <path d="M1.5 2L4.5 4L1.5 6" stroke="#30BF17" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  ) : filter === "visited" ? (
-                    <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none">
-                      <rect x="8" y="3" width="10.5" height="2" rx="1" fill="#99A1AF"/>
-                      <rect x="8" y="9" width="10.5" height="2" rx="1" fill="#99A1AF"/>
-                      <rect x="8" y="15" width="10.5" height="2" rx="1" fill="#99A1AF"/>
-                      <path d="M1.5 8L4.5 10L1.5 12" stroke="#30BF17" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none">
-                      <rect x="8" y="3" width="10.5" height="2" rx="1" fill="#99A1AF"/>
-                      <rect x="8" y="9" width="10.5" height="2" rx="1" fill="#99A1AF"/>
-                      <rect x="8" y="15" width="10.5" height="2" rx="1" fill="#99A1AF"/>
-                      <path d="M1.5 14L4.5 16L1.5 18" stroke="#30BF17" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )
-                }
-                className="w-[110px] flex-shrink-0 justify-start"
-              >
-                {filter === "all" ? "All Parks" : filter === "visited" ? "Visited" : "To go"}
-              </ButtonStandard>
+                );
+                const sortOptions: { value: SortType; label: string; triggerLabel: string; icon: React.ReactNode }[] = [
+                  { value: "alphabetical", label: "Alphabetical", triggerLabel: "A to Z", icon: <AzIcon className="w-4 h-4" /> },
+                  { value: "state", label: "By State", triggerLabel: "by State", icon: <MapIcon className="w-5 h-5 text-[#99A1AF]" /> },
+                  { value: "distance", label: "By Distance", triggerLabel: "by Distance", icon: <LocateFixed className="w-5 h-5 text-[#99A1AF]" /> },
+                ];
+                const selectSort = (value: SortType) => {
+                  setSortOrder(value);
+                  if (value === "distance" && !userCoords && navigator.geolocation) {
+                    setLocating(true);
+                    navigator.geolocation.getCurrentPosition(
+                      ({ coords: { latitude, longitude } }) => {
+                        setUserCoords({ lat: latitude, lng: longitude });
+                        setLocating(false);
+                      },
+                      () => setLocating(false),
+                      { enableHighAccuracy: false, timeout: 10000 }
+                    );
+                  }
+                };
+                const activeTriggerLabel = sortOptions.find((o) => o.value === sortOrder)?.triggerLabel;
+                return (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <ButtonStandard theme="white" className="w-[130px] flex-shrink-0 justify-between" title="Sort parks">
+                        {activeTriggerLabel}
+                        <ChevronDown className="w-4 h-4 text-[#99A1AF] flex-shrink-0" />
+                      </ButtonStandard>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-[200px] p-1">
+                      {sortOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => selectSort(option.value)}
+                          className="flex w-full items-center gap-2 rounded-[4px] px-2 py-2 text-[14px] text-[#0a0a0a] hover:bg-[#f3f3f5] transition-colors"
+                        >
+                          <span className="size-[20px] flex items-center justify-center flex-shrink-0">{option.icon}</span>
+                          <span className="flex-1 text-left">{option.label}</span>
+                          {sortOrder === option.value && <Check className="w-4 h-4 text-brand-accent flex-shrink-0" />}
+                        </button>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
+                );
+              })()}
+              {(() => {
+                const filterOptions: { value: FilterType; label: string }[] = [
+                  { value: "all", label: "All Parks" },
+                  { value: "visited", label: "Visited" },
+                  { value: "to-go", label: "To go" },
+                ];
+                const activeLabel = filterOptions.find((o) => o.value === filter)?.label;
+                return (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <ButtonStandard theme="white" className="w-[110px] flex-shrink-0 justify-between" title="Filter parks">
+                        {activeLabel}
+                        <ChevronDown className="w-4 h-4 text-[#99A1AF] flex-shrink-0" />
+                      </ButtonStandard>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-[160px] p-1">
+                      {filterOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => setFilter(option.value)}
+                          className="flex w-full items-center gap-2 rounded-[4px] px-2 py-2 text-[14px] text-[#0a0a0a] hover:bg-[#f3f3f5] transition-colors"
+                        >
+                          <span className="flex-1 text-left">{option.label}</span>
+                          {filter === option.value && <Check className="w-4 h-4 text-brand-accent flex-shrink-0" />}
+                        </button>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
+                );
+              })()}
             </div>
 
             {/* Stats */}
