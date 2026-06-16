@@ -4,8 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-- **Dev server:** `npm run dev` (port read from `../ports.json` under key `"ParkPal"`)
+- **Dev server:** `npm run dev` — `vite.config.ts` reads `../ports.json` (sibling of the project root) and uses `ports["ParkPal"]` as `server.port`. If the file is missing, Vite falls back to its default port.
 - **Build:** `npm run build` (runs `tsc -b && vite build`)
+- **Typecheck only:** `npx tsc -b` (no separate npm script; `build` runs this first)
 - **Lint:** `npm run lint`
 - **Preview production build:** `npm run preview`
 
@@ -25,7 +26,7 @@ Secrets live in `.env.local` (gitignored via `*.local`) and are read through `im
 
 ### Key files
 
-- `src/App.tsx` — Top-level page component (~595 lines). Owns filter/sort UI state, scroll-aware header, geolocation/nearest-park dialog, user-profile drawer, and route-finder gating. Delegates auth and park-visit state to hooks.
+- `src/App.tsx` — Top-level page component. Owns filter/sort UI state, scroll-aware header, geolocation/nearest-park dialog, user-profile drawer, and route-finder gating. Delegates auth and park-visit state to hooks.
 - `src/hooks/useAuth.ts` — Session bootstrap, `onAuthStateChange` listener, and `continueAsGuest` / `signOut` / `goToAuthScreen` helpers. Owns `authState`, `user`, `isGuest`.
 - `src/hooks/useParkData.ts` — Park-visit state (`parkData`, `headerImageOverrides`), Supabase load/upsert/delete, guest `localStorage` persistence, and mutation helpers (`toggleVisited`, `updateParkNote`, `updateParkDate`, `updateParkPhoto`, `updateHeaderImage`, `resetParkData`, `clearSaveError`). Exposes `ParkData` type.
 - `src/components/AuthScreen.tsx` — Email/password sign-in and sign-up screen with guest mode entry.
