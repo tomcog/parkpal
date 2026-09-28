@@ -48,11 +48,15 @@ Secrets live in `.env.local` (gitignored via `*.local`) and are read through `im
 
 ### UI
 
-- UI primitives are shadcn/ui components in `src/components/ui/` (button, input, dialog, drawer, calendar, etc.) using Radix UI + `class-variance-authority`.
-- `buttonVariants` lives in `src/components/ui/button-variants.ts` so `button.tsx` only exports a component (required for React Fast Refresh).
+- **Components come from `@tomcoggia/ui`** (repo `~/Sites/component-library`, installed as `github:tomcog/component-library#vX.Y.Z` — never `#main`). Reach for a library component first: `Button`, `ButtonRound`, `InputText`, `InputSelect`, `InputTextarea`, `Checkbox`, `Card`, `Tag`, `Modal`. Its stylesheet is imported in `src/main.tsx` *after* `index.css`.
+- **Layer order**: `src/index.css` opens with `@layer theme, base, ui, components, utilities;`. It must stay first, or Tailwind's preflight strips library button fills. Tailwind classes passed via `className` override library styles, so pass only layout classes (width, flex, position).
+- **Theme bridge**: `src/index.css` sets the library's semantic tokens unlayered on `:root`. ParkPal's green `#30BF17` is both `--ui-action` (controls, CTAs, focus rings) and `--ui-brand` (logo, rules, labels that don't act). Tailwind exposes them as `ui-action` / `ui-brand` (`text-ui-brand`, `ring-ui-action`); pick by what the element *is*. Never alias library primitives (`--ui-tc-red`). The shadcn `--primary` / `--ring` point at `--ui-action`.
+- `index.css` restores `dialog:modal { margin: auto }` in the base layer: preflight zeroes it and the library `Modal` relies on it for centring.
+- A `Modal` opened from inside a vaul `Drawer` must be rendered inside `DrawerContent` (it is not portalled, and vaul locks pointer events/focus to the drawer).
+- **Park sheet transition**: the full-screen park detail sheet is a Radix Dialog (not vaul) opened/closed through `openPark()` in `App.tsx`, which wraps the state change in `document.startViewTransition` (`src/utils/parkTransition.ts`). The card grows into the sheet on a spring while its photo flies into the header; CSS is in `index.css` under "Park sheet transition". Only the card being opened/closed carries the `park-vt-*` classes (`isTransitionTarget`), because every named element is lifted above the page during a transition — don't add view-transition names to all cards. The `::view-transition-group(*)` spring timing is global, so a second View Transition elsewhere would inherit it.
+- Remaining shadcn/Radix pieces in `src/components/ui/` cover what the library lacks: `drawer` (vaul, full-screen sheets), `dialog` (calendar picker, photo lightbox), `calendar`, `progress`. `buttonVariants` lives in `button-variants.ts` only because `calendar.tsx` uses it.
 - Path alias: `@/` maps to `src/`.
-- CSS variables for theming are defined in `src/index.css` with light/dark mode support.
-- Icons from `lucide-react`.
+- Icons from `lucide-react`, passed into library icon slots unsized (the component sizes them).
 
 ### Build configuration
 

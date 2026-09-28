@@ -1,3 +1,12 @@
+/* Layer order, and it must stay first in this file.
+   @tomcoggia/ui ships inside `@layer ui`, and a layer's position is fixed the
+   first time its name is seen. Tailwind's preflight resets
+   `button { background: transparent }` in `@layer base`, so if `ui` were seen
+   first it would sit BELOW base and library buttons would render with no fill.
+   `ui` after `base` so preflight cannot clobber components; before `utilities`
+   so layout classes passed through className still apply. */
+@layer theme, base, ui, components, utilities;
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
@@ -12,8 +21,10 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
+  /* The remaining shadcn pieces (calendar, progress) follow the library's
+     action role rather than keeping their own near-black primary. */
+  --primary: var(--ui-action);
+  --primary-foreground: var(--ui-text-on-action);
   --secondary: oklch(0.95 0.0058 264.53);
   --secondary-foreground: #030213;
   --muted: #ececf0;
@@ -28,7 +39,7 @@
   --switch-background: #cbced4;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: oklch(0.708 0 0);
+  --ring: var(--ui-action);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -43,7 +54,6 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
-  --brand-accent: #30BF17;
 }
 
 .dark {
@@ -81,7 +91,37 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
-  --brand-accent: #30BF17;
+}
+
+/* --------------------------------------------------------------------------
+   @tomcoggia/ui theming bridge
+
+   The library's semantic tier is its public API: these --ui-* names are what
+   the app overrides to make the components its own. Declared UNLAYERED on
+   :root, which is what makes this work - unlayered CSS beats everything inside
+   @layer ui, whatever the import order.
+
+   ParkPal's green is both roles: Action (controls, CTAs, focus rings) and
+   Brand (the logo, rules, labels that don't act). They are kept as two
+   declarations so they can be split later without touching components.
+   Each role is exposed to Tailwind as `ui-action` / `ui-brand` below, so the
+   app's own markup picks by what an element IS, not by the colour it comes out.
+
+   Never alias the library's primitives (--ui-tc-red etc.), only these. */
+:root {
+  --ui-action: #30BF17;
+  --ui-text-on-action: #FFFFFF;
+  --ui-brand: #30BF17;
+  --ui-text-on-brand: #FFFFFF;
+
+  /* The text cursor in every field. caret-color inherits, and nothing in the
+     library sets it, so this one declaration reaches every input. */
+  caret-color: var(--ui-action);
+
+  /* ParkPal is Inter throughout, so the library's own DM Sans (fonts.css) is
+     not imported. */
+  --ui-font-primary: 'Inter';
+  --ui-font-fallback: system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
 @theme inline {
@@ -123,7 +163,8 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --color-brand-accent: var(--brand-accent);
+  --color-ui-action: var(--ui-action);
+  --color-ui-brand: var(--ui-brand);
 }
 
 @layer base {
@@ -141,6 +182,13 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-family);
+  }
+
+  /* Preflight zeroes every margin, including the UA's `margin: auto` that
+     centres a modal <dialog>. @tomcoggia/ui's Modal relies on that default,
+     so without this it opens pinned to the top-left corner. */
+  dialog:modal {
+    margin: auto;
   }
 }
 
@@ -199,3 +247,90 @@
 html {
   font-size: var(--font-size);
 }
+
+/* The visit note's "Tap to add a note…" hint is an instruction, so it goes
+   once it has been followed: focused, the field shows only the (green)
+   cursor. Uses InputTextarea's placeholder hook rather than restyling the
+   library's ::placeholder rule. */
+.park-note:focus-within {
+  --ui-input-textarea-placeholder: transparent;
+}
+
+/* --------------------------------------------------------------------------
+   Park sheet transition
+
+   The full-screen park sheet opens and closes as a View Transition
+   (src/utils/parkTransition.ts): the card grows into the sheet on a gentle
+   spring while its photo flies into the header, and the page dims behind
+   (the overlay arrives in the root cross-fade). Closing is the same in
+   reverse. NationalParkCard gives the park-vt-* classes only to the card
+   being opened/closed and to the open sheet, so each name exists once. */
+
+.park-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: white;
+  overflow: hidden;
+  outline: none;
+}
+
+.park-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgb(0 0 0 / 0.4);
+}
+
+.park-vt-card { view-transition-name: park-card; }
+.park-vt-image { view-transition-name: park-image; }
+
+/* A damped spring (damping ratio 0.82): ~1% overshoot, settled by ~85%. */
+::view-transition-group(*) {
+  animation-duration: 650ms;
+  animation-timing-function: linear(0, 0.028 2.5%, 0.0974 5%, 0.2107 8%,
+    0.3366 11%, 0.5007 15%, 0.6443 19%, 0.7848 24%, 0.8828 29%, 0.9546 35%,
+    0.9951 42%, 1.0099 50%, 1.0097 60%, 1.0043 72%, 1.001 85%, 1);
+}
+
+/* The box: clip both snapshots to it and pin them top-left at natural size,
+   so the card's text is never stretched to screen size - it fades out quickly
+   while the sheet is revealed under it. */
+::view-transition-image-pair(park-card) {
+  overflow: hidden;
+  border-radius: 8px;
+}
+::view-transition-old(park-card),
+::view-transition-new(park-card) {
+  width: 100%;
+  height: 100%;
+  object-fit: none;
+  object-position: top left;
+}
+::view-transition-old(park-card) {
+  animation: park-fade-out 160ms ease-out both;
+}
+::view-transition-new(park-card) {
+  animation: park-fade-in 200ms 60ms ease-out both;
+}
+
+/* The photo: 150px card crop to 250px header crop, cropped rather than
+   squashed. The two are the same picture, so no cross-fade is visible. */
+::view-transition-old(park-image),
+::view-transition-new(park-image) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Browsers without View Transitions: the sheet fades in and out on its own
+   (Radix keeps it mounted until the close animation ends). */
+@supports not (view-transition-name: none) {
+  .park-sheet[data-state="open"],
+  .park-overlay[data-state="open"] { animation: park-fade-in 200ms ease-out both; }
+  .park-sheet[data-state="closed"],
+  .park-overlay[data-state="closed"] { animation: park-fade-out 150ms ease-in both; }
+}
+
+@keyframes park-fade-in { from { opacity: 0; } }
+@keyframes park-fade-out { to { opacity: 0; } }

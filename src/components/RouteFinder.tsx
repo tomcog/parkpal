@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Drawer, DrawerContent } from "./ui/drawer";
-import { Button } from "./ui/button";
-import { ButtonStandard } from "./ButtonStandard";
+import { Button, ButtonRound, InputText } from "@tomcoggia/ui";
 import {
-  X, Route as RouteIcon, Loader2, MapPin, ArrowRight,
+  X, Route as RouteIcon, MapPin, ArrowRight,
   Bookmark, ExternalLink, Trash2, ChevronDown, ChevronUp,
 } from "lucide-react";
 import NounNationalPark from "../imports/NounNationalPark19895091";
@@ -229,13 +228,7 @@ export default function RouteFinder({
           {/* Header */}
           <div className="flex flex-col gap-6 items-center px-6 pt-6 pb-4">
             <div className="flex items-start w-full">
-              <button
-                onClick={() => onOpenChange(false)}
-                className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors opacity-50 hover:opacity-100"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <ButtonRound size="lg" icon={<X />} onClick={() => onOpenChange(false)} aria-label="Close" />
             </div>
 
             <div className="h-[64px] w-fit">
@@ -243,7 +236,7 @@ export default function RouteFinder({
             </div>
 
             <div className="flex flex-col gap-1 items-center">
-              <div className="flex items-center gap-2 text-brand-accent">
+              <div className="flex items-center gap-2 text-ui-brand">
                 <RouteIcon className="w-6 h-6" />
                 <h2 className="text-2xl font-semibold tracking-tight text-[#313730]">Parks along the way</h2>
               </div>
@@ -282,13 +275,15 @@ export default function RouteFinder({
                           {row.origin} → {row.destination}
                         </p>
                       </button>
-                      <button
+                      <Button
+                        variant="tertiary"
+                        tone="danger"
+                        size="lg"
+                        icon={<Trash2 />}
                         onClick={() => handleDeleteSaved(row.id)}
-                        className="px-3 bg-[#f3f3f5] hover:bg-red-50 hover:text-red-600 rounded-[4px] transition-colors text-gray-400"
                         aria-label={`Delete ${row.name}`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                        className="self-center"
+                      />
                     </li>
                   ))}
                 </ul>
@@ -303,7 +298,7 @@ export default function RouteFinder({
               value={origin}
               onChange={setOrigin}
               placeholder="Starting location"
-              icon={<MapPin className="w-5 h-5" />}
+              icon={<MapPin />}
               onEnter={handleSearch}
             />
             <AddressAutocomplete
@@ -311,7 +306,7 @@ export default function RouteFinder({
               value={destination}
               onChange={setDestination}
               placeholder="Destination"
-              icon={<ArrowRight className="w-5 h-5" />}
+              icon={<ArrowRight />}
               onEnter={handleSearch}
             />
             <div className="flex flex-col gap-1 pt-1">
@@ -319,7 +314,7 @@ export default function RouteFinder({
                 <label htmlFor="corridor-slider" className="text-sm text-gray-500">
                   Search within
                 </label>
-                <span className="text-sm font-semibold text-brand-accent">
+                <span className="text-sm font-semibold text-ui-brand">
                   {corridorMiles} {corridorMiles === 1 ? "mile" : "miles"}
                 </span>
               </div>
@@ -331,22 +326,24 @@ export default function RouteFinder({
                 step={5}
                 value={corridorMiles}
                 onChange={(e) => setCorridorMiles(parseInt(e.target.value, 10))}
-                className="w-full accent-brand-accent"
+                className="w-full accent-ui-action"
               />
             </div>
             <div className="flex gap-2">
               <Button
+                size="lg"
                 onClick={handleSearch}
-                disabled={loading || !origin.trim() || !destination.trim()}
-                className="flex-1 h-11 bg-brand-accent hover:bg-brand-accent/90 text-white rounded-[4px] text-base font-semibold gap-2"
+                loading={loading}
+                disabled={!origin.trim() || !destination.trim()}
+                icon={<RouteIcon />}
+                className="flex-1"
               >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RouteIcon className="w-5 h-5" />}
-                {loading ? "Finding parks..." : "Find parks"}
+                Find parks
               </Button>
               {(encodedPolyline || error) && (
-                <ButtonStandard onClick={handleReset} theme="white" className="px-4">
+                <Button variant="tertiary" size="lg" onClick={handleReset}>
                   Reset
-                </ButtonStandard>
+                </Button>
               )}
             </div>
             {error && (
@@ -377,7 +374,9 @@ export default function RouteFinder({
             <div className="px-6 pb-4 max-w-[560px] w-full mx-auto flex flex-col gap-2">
               {namingTrip ? (
                 <div className="flex gap-2">
-                  <input
+                  <InputText
+                    label="Trip name"
+                    hideLabel
                     autoFocus
                     value={tripName}
                     onChange={(e) => setTripName(e.target.value)}
@@ -386,51 +385,44 @@ export default function RouteFinder({
                       if (e.key === "Escape") { setNamingTrip(false); setTripName(""); }
                     }}
                     placeholder="Name this trip"
-                    className="flex-1 h-[44px] px-3 bg-[#f3f3f5] border border-transparent rounded-[4px] text-[16px] text-[#0a0a0a] placeholder:text-[#99A1AF] focus:outline-none focus:border-brand-accent focus:bg-white transition-colors"
+                    className="flex-1"
                   />
                   <Button
+                    size="lg"
                     onClick={handleSaveTrip}
-                    disabled={!tripName.trim() || savingTrip}
-                    className="h-11 bg-brand-accent hover:bg-brand-accent/90 text-white rounded-[4px] px-4"
+                    loading={savingTrip}
+                    disabled={!tripName.trim()}
                   >
-                    {savingTrip ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
+                    Save
                   </Button>
-                  <ButtonStandard
+                  <Button
+                    variant="tertiary"
+                    size="lg"
                     onClick={() => { setNamingTrip(false); setTripName(""); }}
-                    theme="white"
-                    className="px-3"
                   >
                     Cancel
-                  </ButtonStandard>
+                  </Button>
                 </div>
               ) : (
-                <div className="flex gap-2">
+                // Stacked on narrow phones: the two labels don't fit side by side.
+                <div className="flex flex-col gap-2 min-[400px]:flex-row">
                   {!isGuest && (
-                    <ButtonStandard
+                    <Button
+                      variant="secondary"
+                      size="lg"
                       onClick={() => setNamingTrip(true)}
-                      theme="white"
-                      icon={<Bookmark className="w-4 h-4" />}
+                      icon={<Bookmark />}
                       className="flex-1"
                     >
                       Save trip
-                    </ButtonStandard>
+                    </Button>
                   )}
                   {googleMapsUrl && (
-                    <a
-                      href={googleMapsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1"
-                    >
-                      <ButtonStandard
-                        type="button"
-                        theme="white"
-                        icon={<ExternalLink className="w-4 h-4" />}
-                        className="w-full"
-                      >
+                    <Button asChild variant="secondary" size="lg" icon={<ExternalLink />} className="flex-1">
+                      <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer">
                         Open in Google Maps
-                      </ButtonStandard>
-                    </a>
+                      </a>
+                    </Button>
                   )}
                 </div>
               )}
@@ -466,7 +458,7 @@ export default function RouteFinder({
                         <p className="font-semibold text-[15px] text-[#0a0a0a] truncate">{park.name}</p>
                         <p className="text-sm text-gray-500">{park.state}</p>
                       </div>
-                      <span className="text-brand-accent font-semibold text-sm flex-shrink-0">
+                      <span className="text-ui-brand font-semibold text-sm flex-shrink-0">
                         {Math.round(distanceMiles)} mi
                       </span>
                     </button>

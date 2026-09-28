@@ -1,20 +1,19 @@
-import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from "react";
+import { flushSync } from "react-dom";
 import NationalParkCard from "./components/NationalParkCard";
 import AuthScreen from "./components/AuthScreen";
 import { nationalParks } from "./data/nationalParks";
 import { parkImages } from "./data/parkImages";
-import { Button } from "./components/ui/button";
+import { Button, ButtonRound, InputSelect, InputText, Modal } from "@tomcoggia/ui";
 import { Progress } from "./components/ui/progress";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./components/ui/dialog";
 import { Drawer, DrawerContent } from "./components/ui/drawer";
-import { Popover, PopoverTrigger, PopoverContent } from "./components/ui/popover";
-import { Search, X, CircleUser, LocateFixed, Loader2, AlertCircle, PencilLine, LogIn, LogOut, Route as RouteIcon, Check, ChevronDown } from "lucide-react";
+import { Search, X, CircleUser, LocateFixed, AlertCircle, PencilLine, LogIn, LogOut, Route as RouteIcon } from "lucide-react";
 import { supabase } from "./utils/supabase/client";
-import { ButtonStandard } from "./components/ButtonStandard";
 import { UpdateToast } from "./components/UpdateToast";
 import NounNationalPark from "./imports/NounNationalPark19895091";
 import { useAuth } from "./hooks/useAuth";
 import { useParkData } from "./hooks/useParkData";
+import { runParkTransition } from "./utils/parkTransition";
 
 const RouteFinder = lazy(() => import("./components/RouteFinder"));
 
@@ -90,6 +89,15 @@ export default function App() {
 
   const [sortOrder, setSortOrder] = useState<SortType>("alphabetical");
   const [openParkId, setOpenParkId] = useState<string | null>(null);
+  // The card the sheet opens from and closes back into. Kept after close, so
+  // exactly one card at a time carries the transition hooks.
+  const [transitionParkId, setTransitionParkId] = useState<string | null>(null);
+
+  const openPark = useCallback((parkId: string | null) => {
+    // Name the card before the transition's "before" snapshot is taken.
+    if (parkId) flushSync(() => setTransitionParkId(parkId));
+    runParkTransition(() => setOpenParkId(parkId));
+  }, []);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [editingUsername, setEditingUsername] = useState(false);
   const [usernameValue, setUsernameValue] = useState("");
@@ -180,7 +188,7 @@ export default function App() {
   // ── Render loading ────────────────────────────────────────────────────────
   if (authState === "loading") {
     return (
-      <div className="min-h-screen bg-[#f0ffed] flex items-center justify-center">
+      <div className="min-h-screen bg-[color-mix(in_srgb,var(--ui-brand)_8%,white)] flex items-center justify-center">
         <div className="h-[64px] w-fit opacity-70 animate-pulse">
           <NounNationalPark />
         </div>
@@ -212,26 +220,31 @@ export default function App() {
           <div className="flex flex-col gap-4">
 
             {/* Logo + user icon */}
-            <div className="flex items-start justify-between">
-              <div className="h-[64px] w-fit">
+            <div className="flex items-start justify-between gap-2">
+              {/* The logo's artwork is fixed-size, so on narrow phones it is
+                  zoomed (which, unlike scale, also shrinks its layout box)
+                  to leave room for the header icons. */}
+              <div className="h-[64px] w-fit min-w-0 max-[400px]:[zoom:0.75]">
                 <NounNationalPark />
               </div>
-              <div className="flex items-center gap-3">
-                <button
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <ButtonRound
+                  variant="ghost"
+                  size="lg"
+                  icon={<RouteIcon />}
                   onClick={() => setRouteFinderOpen(true)}
-                  className="p-1 text-gray-400 hover:text-brand-accent transition-colors"
                   aria-label="Find parks along a route"
                   title="Parks along your route"
-                >
-                  <RouteIcon className="w-6 h-6" />
-                </button>
-                <button
+                />
+                <ButtonRound
+                  variant="ghost"
+                  size="lg"
+                  icon={<CircleUser />}
                   onClick={openUserMenu}
-                  className={`p-1 transition-colors ${isGuest ? "text-amber-500 hover:text-amber-600" : "text-gray-400 hover:text-brand-accent"}`}
+                  // Amber flags guest mode (data is device-local only), matching the guest banner.
+                  className={isGuest ? "text-amber-500 hover:text-[var(--ui-text-on-action)]" : undefined}
                   aria-label="Account"
-                >
-                  <CircleUser className="w-6 h-6" />
-                </button>
+                />
               </div>
             </div>
 
@@ -245,7 +258,7 @@ export default function App() {
                   onSelectPark={(parkId) => {
                     setFilter("all");
                     setSearchQuery("");
-                    setOpenParkId(parkId);
+                    openPark(parkId);
                   }}
                 />
               </Suspense>
@@ -259,13 +272,7 @@ export default function App() {
 
                   {/* Close button */}
                   <div className="flex items-start w-full">
-                    <button
-                      onClick={() => setUserMenuOpen(false)}
-                      className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors opacity-50 hover:opacity-100"
-                      aria-label="Close"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
+                    <ButtonRound size="lg" icon={<X />} onClick={() => setUserMenuOpen(false)} aria-label="Close" />
                   </div>
 
                   {/* Logo */}
@@ -278,21 +285,23 @@ export default function App() {
                     {user ? (
                       <>
                         <div className="flex items-center gap-2">
-                          <button
+                          <ButtonRound
+                            variant="ghost"
+                            size="md"
+                            icon={<PencilLine />}
                             onClick={() => setEditingUsername(true)}
-                            className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+                            className="flex-shrink-0"
                             aria-label="Edit username"
-                          >
-                            <PencilLine className="w-5 h-5" />
-                          </button>
+                          />
                           {editingUsername ? (
-                            <input
+                            <InputText
+                              label="Username"
                               value={usernameValue}
                               onChange={(e) => setUsernameValue(e.target.value)}
                               onBlur={handleSaveUsername}
                               onKeyDown={(e) => { if (e.key === "Enter") handleSaveUsername(); if (e.key === "Escape") setEditingUsername(false); }}
                               autoFocus
-                              className="text-2xl font-semibold text-[#313730] tracking-tight text-center border-b-2 border-brand-accent focus:outline-none bg-transparent w-48"
+                              className="w-48"
                             />
                           ) : (
                             <button
@@ -314,39 +323,33 @@ export default function App() {
                   </div>
 
                   {/* Show nearest park */}
-                  <button
-                    onClick={handleFindNearest}
-                    disabled={locating}
-                    className="flex items-center justify-center gap-2 text-brand-accent font-semibold text-xl tracking-tight hover:opacity-70 transition-opacity disabled:opacity-50"
-                  >
-                    {locating ? <Loader2 className="w-6 h-6 animate-spin" /> : <LocateFixed className="w-6 h-6" />}
+                  <Button variant="tertiary" size="xl" icon={<LocateFixed />} onClick={handleFindNearest} loading={locating}>
                     Show nearest park
-                  </button>
+                  </Button>
 
                   {/* Action buttons */}
                   <div className="flex flex-col gap-4 w-full">
-                    <Button
-                      onClick={() => setUserMenuOpen(false)}
-                      className="w-full h-11 bg-brand-accent hover:bg-brand-accent/90 text-white rounded-[4px] text-lg font-semibold"
-                    >
+                    <Button size="xl" onClick={() => setUserMenuOpen(false)} className="w-full">
                       {user ? "Stay signed in" : "Continue as guest"}
                     </Button>
                     {isGuest ? (
                       <Button
-                        variant="outline"
+                        variant="ghost"
+                        size="xl"
+                        icon={<LogIn />}
                         onClick={() => { setUserMenuOpen(false); goToAuthScreen(); }}
-                        className="w-full h-11 rounded-[4px] text-lg font-semibold border-gray-400 gap-2"
+                        className="w-full"
                       >
-                        <LogIn className="w-5 h-5 text-gray-500" />
                         Sign in
                       </Button>
                     ) : (
                       <Button
-                        variant="outline"
+                        variant="ghost"
+                        size="xl"
+                        icon={<LogOut />}
                         onClick={() => { setUserMenuOpen(false); handleSignOut(); }}
-                        className="w-full h-11 rounded-[4px] text-lg font-semibold border-gray-400 gap-2"
+                        className="w-full"
                       >
-                        <LogOut className="w-5 h-5 text-gray-500" />
                         Sign out
                       </Button>
                     )}
@@ -356,80 +359,81 @@ export default function App() {
             </Drawer>
 
             {/* Nearest park result dialog */}
-            <Dialog open={nearestDialogOpen} onOpenChange={setNearestDialogOpen}>
-              <DialogContent className="max-w-[320px] p-0 overflow-hidden [&>button]:hidden">
-                <DialogTitle className="sr-only">Nearest National Park</DialogTitle>
-                <DialogDescription className="sr-only">The nearest national park to your current location</DialogDescription>
-                {nearestPark && (
-                  <>
-                    <img
-                      src={`https://maps.googleapis.com/maps/api/staticmap?center=${nearestPark.park.lat},${nearestPark.park.lng}&zoom=7&size=640x280&scale=2&markers=color:0x22c55e%7C${nearestPark.park.lat},${nearestPark.park.lng}&key=${GOOGLE_MAPS_API_KEY}`}
-                      alt={`Map showing ${nearestPark.park.name}`}
-                      className="w-full h-[140px] object-cover"
-                    />
-                    <div className="p-5 flex flex-col gap-3">
-                      <div>
-                        <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-1">Nearest National Park</p>
-                        <p className="font-bold text-[18px] text-black leading-tight">{nearestPark.park.name}</p>
-                        <p className="text-gray-500 text-sm mt-0.5">{nearestPark.park.state}</p>
-                      </div>
-                      <p className="text-brand-accent font-semibold">
-                        {nearestPark.distanceMiles.toLocaleString()} miles away
-                      </p>
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => {
-                            setFilter("all");
-                            setSearchQuery("");
-                            setNearestDialogOpen(false);
-                            setUserMenuOpen(false);
-                            setOpenParkId(nearestPark.park.id);
-                          }}
-                          className="flex-1 bg-brand-accent hover:bg-brand-accent/90 text-white rounded-[4px]"
-                        >
-                          View Park
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => setNearestDialogOpen(false)}
-                          className="rounded-[4px]"
-                        >
-                          Close
-                        </Button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </DialogContent>
-            </Dialog>
+            <Modal
+              open={nearestDialogOpen && nearestPark != null}
+              onClose={() => setNearestDialogOpen(false)}
+              title={nearestPark?.park.name ?? "Nearest National Park"}
+              actions={
+                <>
+                  <Button variant="tertiary" size="md" onClick={() => setNearestDialogOpen(false)}>
+                    Close
+                  </Button>
+                  <Button
+                    size="md"
+                    onClick={() => {
+                      if (!nearestPark) return;
+                      setFilter("all");
+                      setSearchQuery("");
+                      setNearestDialogOpen(false);
+                      setUserMenuOpen(false);
+                      openPark(nearestPark.park.id);
+                    }}
+                  >
+                    View Park
+                  </Button>
+                </>
+              }
+            >
+              {nearestPark && (
+                <div className="flex flex-col gap-3">
+                  <img
+                    src={`https://maps.googleapis.com/maps/api/staticmap?center=${nearestPark.park.lat},${nearestPark.park.lng}&zoom=7&size=640x280&scale=2&markers=color:0x22c55e%7C${nearestPark.park.lat},${nearestPark.park.lng}&key=${GOOGLE_MAPS_API_KEY}`}
+                    alt={`Map showing ${nearestPark.park.name}`}
+                    className="w-full h-[140px] object-cover rounded-[4px]"
+                  />
+                  <p>
+                    Nearest national park · {nearestPark.park.state} ·{" "}
+                    <span className="text-ui-brand font-semibold">
+                      {nearestPark.distanceMiles.toLocaleString()} miles away
+                    </span>
+                  </p>
+                </div>
+              )}
+            </Modal>
 
-            {/* Search and filters */}
-            <div className="flex gap-2">
+            {/* Search and filters: search gets its own row on phones, where
+                sharing one with both selects left it a few characters wide. */}
+            <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative flex-1 min-w-0">
-                {searchQuery ? (
-                  <button onClick={() => setSearchQuery("")} className="absolute left-[10px] top-1/2 -translate-y-1/2 text-[#717182] hover:text-gray-600 cursor-pointer" aria-label="Clear search">
-                    <X className="w-6 h-6" />
-                  </button>
-                ) : (
-                  <Search className="absolute left-[10px] top-1/2 -translate-y-1/2 w-6 h-6 text-[#717182] pointer-events-none" />
-                )}
-                <input
+                <InputText
                   ref={searchInputRef}
+                  label="Search parks"
+                  hideLabel
+                  icon={<Search />}
                   autoFocus
                   placeholder="Search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "a") e.currentTarget.select(); }}
-                  className="w-full h-[44px] pl-[42px] pr-3 bg-[#f3f3f5] border border-transparent rounded-[4px] text-[16px] text-[#0a0a0a] placeholder:text-[#99A1AF] focus:outline-none focus:border-brand-accent focus:bg-white transition-colors"
                 />
+                {searchQuery && (
+                  <ButtonRound
+                    variant="ghost"
+                    size="sm"
+                    icon={<X />}
+                    onClick={() => { setSearchQuery(""); searchInputRef.current?.focus(); }}
+                    className="absolute right-1 top-1"
+                    aria-label="Clear search"
+                  />
+                )}
               </div>
-              {(() => {
-                const sortOptions: { value: SortType; label: string; triggerLabel: string }[] = [
-                  { value: "alphabetical", label: "A to Z", triggerLabel: "A to Z" },
-                  { value: "state", label: "By State", triggerLabel: "by State" },
-                  { value: "distance", label: "By Distance", triggerLabel: "by Distance" },
-                ];
-                const selectSort = (value: SortType) => {
+              <div className="flex gap-2">
+              <InputSelect
+                label="Sort parks"
+                hideLabel
+                value={sortOrder}
+                onChange={(e) => {
+                  const value = e.target.value as SortType;
                   setSortOrder(value);
                   if (value === "distance" && !userCoords && navigator.geolocation) {
                     setLocating(true);
@@ -442,61 +446,25 @@ export default function App() {
                       { enableHighAccuracy: false, timeout: 10000 }
                     );
                   }
-                };
-                const activeTriggerLabel = sortOptions.find((o) => o.value === sortOrder)?.triggerLabel;
-                return (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <ButtonStandard theme="white" className="flex-shrink-0" title="Sort parks">
-                        {activeTriggerLabel}
-                        <ChevronDown className="w-4 h-4 text-[#99A1AF] flex-shrink-0" />
-                      </ButtonStandard>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-fit min-w-[130px] p-1">
-                      {sortOptions.map((option) => (
-                        <button
-                          key={option.value}
-                          onClick={() => selectSort(option.value)}
-                          className="flex w-full items-center gap-2 rounded-[4px] px-2 py-2 text-[14px] text-[#0a0a0a] hover:bg-[#f3f3f5] transition-colors"
-                        >
-                          <span className="flex-1 text-left">{option.label}</span>
-                          {sortOrder === option.value && <Check className="w-4 h-4 text-brand-accent flex-shrink-0" />}
-                        </button>
-                      ))}
-                    </PopoverContent>
-                  </Popover>
-                );
-              })()}
-              {(() => {
-                const filterOptions: { value: FilterType; label: string }[] = [
-                  { value: "all", label: "All Parks" },
-                  { value: "visited", label: "Visited" },
-                  { value: "to-go", label: "To go" },
-                ];
-                const activeLabel = filterOptions.find((o) => o.value === filter)?.label;
-                return (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <ButtonStandard theme="white" className="w-[110px] flex-shrink-0 justify-between" title="Filter parks">
-                        {activeLabel}
-                        <ChevronDown className="w-4 h-4 text-[#99A1AF] flex-shrink-0" />
-                      </ButtonStandard>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-[160px] p-1">
-                      {filterOptions.map((option) => (
-                        <button
-                          key={option.value}
-                          onClick={() => setFilter(option.value)}
-                          className="flex w-full items-center gap-2 rounded-[4px] px-2 py-2 text-[14px] text-[#0a0a0a] hover:bg-[#f3f3f5] transition-colors"
-                        >
-                          <span className="flex-1 text-left">{option.label}</span>
-                          {filter === option.value && <Check className="w-4 h-4 text-brand-accent flex-shrink-0" />}
-                        </button>
-                      ))}
-                    </PopoverContent>
-                  </Popover>
-                );
-              })()}
+                }}
+                className="flex-1 sm:flex-none sm:w-[120px]"
+              >
+                <option value="alphabetical">A to Z</option>
+                <option value="state">By State</option>
+                <option value="distance">By Distance</option>
+              </InputSelect>
+              <InputSelect
+                label="Filter parks"
+                hideLabel
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as FilterType)}
+                className="flex-1 sm:flex-none sm:w-[110px]"
+              >
+                <option value="all">All Parks</option>
+                <option value="visited">Visited</option>
+                <option value="to-go">To go</option>
+              </InputSelect>
+              </div>
             </div>
 
             {/* Stats */}
@@ -524,10 +492,10 @@ export default function App() {
                 <div>
                   <div className="flex gap-[4px] leading-[normal] flex-wrap">
                     <span className="text-[#9198A6] font-normal">{before}</span>
-                    {green && <span className="text-brand-accent font-medium">{green}</span>}
+                    {green && <span className="text-ui-brand font-medium">{green}</span>}
                     {after && <span className="text-[#9198A6] font-normal">{after}</span>}
                   </div>
-                  <Progress value={(visitedCount / totalCount) * 100} className="h-2 mt-2" indicatorClassName="bg-brand-accent" />
+                  <Progress value={(visitedCount / totalCount) * 100} className="h-2 mt-2" indicatorClassName="bg-ui-brand" />
                 </div>
               );
             })()}
@@ -543,13 +511,14 @@ export default function App() {
               <p className="text-sm font-medium text-red-800">Your data could not be saved</p>
               <p className="text-xs text-red-600 mt-0.5 font-mono break-all">{saveError}</p>
             </div>
-            <button
+            <ButtonRound
+              variant="ghost"
+              size="sm"
+              icon={<X />}
               onClick={clearSaveError}
-              className="flex-shrink-0 text-red-400 hover:text-red-600 transition-colors"
+              className="flex-shrink-0"
               aria-label="Dismiss"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            />
           </div>
         </div>
       )}
@@ -595,7 +564,8 @@ export default function App() {
                 facts={park.facts}
                 trivia={park.trivia}
                 isOpen={openParkId === park.id}
-                onOpenChange={(open) => setOpenParkId(open ? park.id : null)}
+                onOpenChange={(open) => openPark(open ? park.id : null)}
+                isTransitionTarget={transitionParkId === park.id}
               />
             </div>
           ))}

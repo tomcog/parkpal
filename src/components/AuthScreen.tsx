@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { supabase } from "../utils/supabase/client";
 import NounNationalPark from "../imports/NounNationalPark19895091";
-import { LogIn, UserPlus, Loader2 } from "lucide-react";
+import { LogIn, UserPlus } from "lucide-react";
+import { Button, InputText } from "@tomcoggia/ui";
 
 interface AuthScreenProps {
   onContinueAsGuest: () => void;
@@ -40,8 +41,8 @@ export default function AuthScreen({ onContinueAsGuest }: AuthScreenProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#f0ffed] flex flex-col items-center justify-center px-4">
-      <div className="w-[360px] flex flex-col gap-8">
+    <div className="min-h-screen bg-[color-mix(in_srgb,var(--ui-brand)_8%,white)] flex flex-col items-center justify-center px-4">
+      <div className="w-full max-w-[360px] flex flex-col gap-8">
 
         {/* Logo + tagline */}
         <div className="flex flex-col items-center gap-5">
@@ -50,7 +51,7 @@ export default function AuthScreen({ onContinueAsGuest }: AuthScreenProps) {
           </div>
           <p className="text-[#717182] text-[20px] text-center leading-[20px]">
             Discover{" "}
-            <span className="font-bold text-[#30bf17]">Your</span>
+            <span className="font-bold text-ui-brand">Your</span>
             {" "}National Parks
           </p>
         </div>
@@ -58,7 +59,7 @@ export default function AuthScreen({ onContinueAsGuest }: AuthScreenProps) {
         {/* Auth card */}
         <form
           onSubmit={handleSubmit}
-          className="bg-[#d4f7cd] rounded-[12px] p-5 flex flex-col gap-[19px]"
+          className="bg-[color-mix(in_srgb,var(--ui-brand)_20%,white)] rounded-[12px] p-5 flex flex-col gap-[19px]"
         >
           {error && (
             <p className="text-red-600 text-sm text-center bg-red-50 rounded-[4px] px-3 py-2">
@@ -71,60 +72,53 @@ export default function AuthScreen({ onContinueAsGuest }: AuthScreenProps) {
             </p>
           )}
 
-          <input
+          <InputText
             type="email"
-            placeholder="Email"
+            label="Email"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="bg-white h-[44px] rounded-[4px] px-4 py-3 text-[18px] text-[#888] placeholder:text-[#888] outline-none focus:ring-2 focus:ring-[#30bf17]/40 w-full"
           />
-          <input
+          <InputText
             type="password"
-            placeholder="Password"
+            label="Password"
+            autoComplete={mode === "signin" ? "current-password" : "new-password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="bg-white h-[44px] rounded-[4px] px-4 py-3 text-[18px] text-[#888] placeholder:text-[#888] outline-none focus:ring-2 focus:ring-[#30bf17]/40 w-full"
           />
 
-          <button
+          <Button
             type="submit"
-            disabled={loading}
-            className="bg-[#30bf17] h-[44px] rounded-[4px] flex items-center justify-center gap-2 text-white font-semibold text-[18px] w-full disabled:opacity-70 hover:bg-[#28a813] transition-colors"
+            size="lg"
+            loading={loading}
+            icon={mode === "signin" ? <LogIn /> : <UserPlus />}
+            className="w-full"
           >
-            {loading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : mode === "signin" ? (
-              <LogIn className="w-5 h-5" />
-            ) : (
-              <UserPlus className="w-5 h-5" />
-            )}
             {mode === "signin" ? "Sign in" : "Sign up"}
-          </button>
+          </Button>
 
-          <button
-            type="button"
+          <Button
+            variant="tertiary"
+            size="lg"
             onClick={() => {
               setMode(mode === "signin" ? "signup" : "signin");
               setError(null);
               setSuccessMsg(null);
             }}
-            className="h-[44px] flex items-center justify-center text-[#30bf17] font-medium text-[18px] text-center w-full hover:text-[#28a813] transition-colors"
+            className="w-full"
           >
             {mode === "signin"
               ? "Need an account? Sign up"
               : "Already have an account? Sign in"}
-          </button>
+          </Button>
         </form>
 
         {/* Guest mode */}
-        <button
-          onClick={onContinueAsGuest}
-          className="h-[46px] flex items-center justify-center text-[#30bf17] font-medium text-[18px] text-center w-full hover:text-[#28a813] transition-colors"
-        >
+        <Button variant="tertiary" size="lg" onClick={onContinueAsGuest} className="w-full">
           Use without signing in
-        </button>
+        </Button>
       </div>
     </div>
   );

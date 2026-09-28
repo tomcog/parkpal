@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
+import { InputText } from "@tomcoggia/ui";
 
 interface AddressAutocompleteProps {
   apiKey: string;
@@ -137,10 +138,10 @@ export default function AddressAutocomplete({
 
   return (
     <div ref={containerRef} className="relative">
-      <span className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none flex items-center justify-center">
-        {icon}
-      </span>
-      <input
+      <InputText
+        label={placeholder}
+        hideLabel
+        icon={icon}
         value={value}
         onChange={(e) => {
           userEditedRef.current = true;
@@ -167,7 +168,7 @@ export default function AddressAutocomplete({
           }
         }}
         placeholder={placeholder}
-        className="w-full h-[44px] pl-10 pr-3 bg-[#f3f3f5] border border-transparent rounded-[4px] text-[16px] text-[#0a0a0a] placeholder:text-[#99A1AF] focus:outline-none focus:border-brand-accent focus:bg-white transition-colors"
+        autoComplete="off"
       />
       {open && suggestions.length > 0 && (
         <ul className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-[4px] shadow-lg overflow-hidden z-[10000] max-h-[280px] overflow-y-auto">

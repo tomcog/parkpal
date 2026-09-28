@@ -1,19 +1,23 @@
-import { MapPin, X, Calendar, Camera, Loader2, SwitchCamera, RefreshCw, ImageUp } from "lucide-react";
-import { memo, useState, useRef, lazy, Suspense } from "react";
+import { MapPin, X, Calendar, Camera, Loader2, SwitchCamera, RefreshCw, ImagePlus } from "lucide-react";
+import { memo, useId, useState, useRef, lazy, Suspense, type CSSProperties } from "react";
+import * as SheetPrimitive from "@radix-ui/react-dialog";
+import { Button, ButtonRound, Card, Checkbox, InputTextarea, Modal, Tag } from "@tomcoggia/ui";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
-import { Drawer, DrawerContent, DrawerDescription, DrawerTitle, DrawerTrigger } from "./ui/drawer";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./ui/dialog";
-import { Switch } from "./ui/switch";
-import { Label } from "./ui/label";
-import { Badge } from "./ui/badge";
-import { Textarea } from "./ui/textarea";
-import { Button } from "./ui/button";
 import { parkAbbreviations } from "../data/parkAbbreviations";
 import { stateAbbreviations } from "../data/stateAbbreviations";
 import { parkThumbnails } from "../data/parkThumbnails";
 import { format } from "date-fns";
 import { supabase } from "../utils/supabase/client";
 import { resizeUnsplashUrl } from "../utils/imageSize";
+
+// The VISITED tag is brand chrome on a photo, so it takes the brand fill
+// through Tag's own hooks rather than its default raised/muted pairing.
+const visitedTagStyle = {
+  "--ui-tag-bg": "var(--ui-brand)",
+  "--ui-tag-text": "var(--ui-text-on-brand)",
+  "--ui-tag-text-hover": "var(--ui-text-on-brand)",
+} as CSSProperties;
 
 const CalendarComponent = lazy(() => import("./ui/calendar").then((m) => ({ default: m.Calendar })));
 
@@ -39,6 +43,10 @@ interface NationalParkCardProps {
   trivia: string[];
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  /** This card is the one being opened or closed. Only it carries the
+      park-vt-* hooks the park sheet transition names (see index.css), since
+      every named element is lifted above the page during a transition. */
+  isTransitionTarget: boolean;
 }
 
 function NationalParkCardInner({
@@ -63,13 +71,18 @@ function NationalParkCardInner({
   trivia,
   isOpen,
   onOpenChange,
+  isTransitionTarget,
 }: NationalParkCardProps) {
+  // While the sheet is open the hooks move to it, so each name exists exactly
+  // once in both the before and after snapshots.
+  const cardIsNamed = isTransitionTarget && !isOpen;
   const thumbnailUrls = parkThumbnails[id] || [imageUrl, imageUrl, imageUrl, imageUrl];
 
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
+  const photoPickerTitleId = useId();
   const [pickerPhotos, setPickerPhotos] = useState<string[]>(thumbnailUrls);
   const [isFetchingPickerPhotos, setIsFetchingPickerPhotos] = useState(false);
   const [pickerPhotoPool, setPickerPhotoPool] = useState<string[]>([]);
@@ -276,24 +289,25 @@ function NationalParkCardInner({
 
   return (
     <>
-      <Drawer open={isOpen} onOpenChange={onOpenChange} handleOnly>
-        <DrawerTrigger asChild>
-          <div
-            className="bg-white overflow-clip relative rounded-[8px] shadow-[0px_16px_16px_-8px_rgba(12,12,13,0.1),0px_4px_4px_-4px_rgba(12,12,13,0.05)] cursor-pointer transition-all hover:shadow-[0px_20px_24px_-8px_rgba(12,12,13,0.15),0px_6px_6px_-4px_rgba(12,12,13,0.08)] flex flex-col h-full"
+      <SheetPrimitive.Root open={isOpen} onOpenChange={onOpenChange}>
+        <SheetPrimitive.Trigger asChild>
+          <Card
+            variant="float1"
+            className={`overflow-clip relative cursor-pointer transition-shadow hover:[box-shadow:var(--ui-shadow-float-2)] flex flex-col h-full ${cardIsNamed ? "park-vt-card" : ""}`}
             data-name="card.national_park"
           >
             <div className="relative h-[150px] w-full">
               <ImageWithFallback
                 alt={name}
-                className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
+                className={`absolute inset-0 max-w-none object-cover pointer-events-none size-full ${cardIsNamed ? "park-vt-image" : ""}`}
                 src={resizeUnsplashUrl(imageUrl, 480)}
                 loading="lazy"
                 decoding="async"
               />
               {isVisited && (
-                <Badge className="absolute top-[12px] right-[12px] bg-brand-accent text-white border-none rounded-full text-[1.15em]">
+                <Tag className="absolute top-[12px] right-[12px]" style={visitedTagStyle}>
                   VISITED
-                </Badge>
+                </Tag>
               )}
             </div>
             <div className="flex flex-col gap-2 p-4 flex-1">
@@ -301,10 +315,27 @@ function NationalParkCardInner({
               <p className="leading-[normal] not-italic opacity-[0.5] text-black">{state}</p>
               <p className="leading-[1.3] not-italic text-black text-[14px]">{description}</p>
             </div>
-          </div>
-        </DrawerTrigger>
+          </Card>
+        </SheetPrimitive.Trigger>
 
-        <DrawerContent className="!h-[100vh] !max-h-[100vh] !mt-0 !rounded-none !border-none !p-0 [&>div:first-child]:hidden">
+        <SheetPrimitive.Portal>
+        {/* Opened and closed as a View Transition (utils/parkTransition.ts);
+            the animation is in index.css under "Park sheet transition". */}
+        <SheetPrimitive.Overlay className="park-overlay" />
+        <SheetPrimitive.Content
+          className="park-sheet park-vt-card flex flex-col"
+          aria-describedby={undefined}
+          // Escape inside the photo picker belongs to the picker, not the sheet.
+          onEscapeKeyDown={(e) => { if (photoPickerOpen) e.preventDefault(); }}
+          // Focus the sheet itself on open, not its first button. Radix would
+          // otherwise focus Close, and its focus ring made it look larger than
+          // the other hero buttons, with a double ring. Tab still reaches Close
+          // first and Escape still closes.
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            (e.currentTarget as HTMLElement | null)?.focus({ preventScroll: true });
+          }}
+        >
           <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
           <input type="file" ref={visitPhotoInputRef} onChange={handleVisitPhotoUpload} accept="image/*" className="hidden" />
 
@@ -313,48 +344,49 @@ function NationalParkCardInner({
               <div className="relative h-full w-full">
                 <ImageWithFallback
                   alt={name}
-                  className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
+                  className="absolute inset-0 max-w-none object-cover pointer-events-none size-full park-vt-image"
                   src={resizeUnsplashUrl(imageUrl, 800)}
                   decoding="async"
                 />
-                <div className="absolute bottom-[-12px] left-0 w-full px-4 text-white font-bold text-[72px] text-right leading-none">
+                <div className="absolute bottom-[-12px] left-0 w-full px-4 text-white font-bold text-[clamp(36px,14vw,72px)] text-right leading-none whitespace-nowrap">
                   {parkAbbreviations[id]?.toUpperCase() || ""} {stateAbbreviations[state]?.toUpperCase() || ""}
                 </div>
                 <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1 bg-white/50 rounded-full" />
-                <button
+                {/* Over the hero photo: outline-light. Figma 890:1695 / 890:1688. */}
+                <ButtonRound
+                  size="lg"
+                  variant="outline-light"
+                  icon={<X />}
                   onClick={(e) => { e.stopPropagation(); onOpenChange(false); }}
-                  className="absolute top-4 left-4 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors z-10 opacity-50 hover:opacity-100"
+                  className="absolute top-4 left-4 z-10"
                   aria-label="Close"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                />
                 <div className="absolute top-4 right-4 flex flex-col gap-4 z-10">
-                  <button
+                  <ButtonRound
+                    size="lg"
+                    variant="outline-light"
+                    icon={<SwitchCamera />}
                     onClick={(e) => { e.stopPropagation(); setPhotoPickerOpen(true); }}
-                    className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors opacity-50 hover:opacity-100"
                     aria-label="Change header photo"
-                  >
-                    <SwitchCamera className="w-5 h-5" />
-                  </button>
-                  <button
+                  />
+                  <ButtonRound
+                    size="lg"
+                    variant="outline-light"
+                    icon={isUploading ? <Loader2 className="animate-spin" /> : <ImagePlus />}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!userId) { alert("Sign in to upload photos"); return; }
                       fileInputRef.current?.click();
                     }}
                     disabled={isUploading}
-                    className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors opacity-50 hover:opacity-100 disabled:opacity-30"
                     aria-label="Upload your photo"
-                  >
-                    {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImageUp className="w-5 h-5" />}
-                  </button>
+                  />
                 </div>
               </div>
             </div>
 
-            <div className="p-6">
-            <DrawerTitle className="sr-only">{name}</DrawerTitle>
-            <DrawerDescription className="sr-only">Detailed information about {name}</DrawerDescription>
+            <div className="p-6 park-vt-body">
+            <SheetPrimitive.Title className="sr-only">{name}</SheetPrimitive.Title>
 
             <div className="flex items-baseline justify-between gap-4 mb-4">
               <h2 className="font-bold text-black text-[20px] flex-1">{name}</h2>
@@ -364,32 +396,23 @@ function NationalParkCardInner({
             </div>
 
             <div className="mb-6">
-              <div className="flex items-center gap-3 mb-3 py-1">
-                <Switch
-                  id={`visited-${id}`}
+              <div className="mb-3 py-1">
+                <Checkbox
+                  size="xl"
+                  label="Visited"
                   checked={isVisited}
-                  onCheckedChange={() => onToggleVisited(id)}
-                  className="data-[state=checked]:bg-brand-accent"
+                  onChange={() => onToggleVisited(id)}
                 />
-                <Label htmlFor={`visited-${id}`} className={`cursor-pointer text-[calc(1em+2px)] ${isVisited ? "text-brand-accent" : ""}`}>
-                  Visited
-                </Label>
               </div>
 
               {isVisited && (
-                <div className="mb-3 flex items-center justify-between">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                   <div>
-                    <button
-                      onClick={() => setCalendarOpen(true)}
-                      className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors cursor-pointer bg-transparent border-none p-0"
-                    >
-                      <Calendar className="w-5 h-5" />
-                      <span>
-                        {visitedDate
-                          ? `Visited ${format(new Date(visitedDate), "MM/dd/yyyy")}`
-                          : "Select date visited"}
-                      </span>
-                    </button>
+                    <Button variant="tertiary" size="md" icon={<Calendar />} onClick={() => setCalendarOpen(true)} className="whitespace-nowrap">
+                      {visitedDate
+                        ? `Visited ${format(new Date(visitedDate), "MM/dd/yyyy")}`
+                        : "Select date visited"}
+                    </Button>
 
                     <Dialog open={calendarOpen} onOpenChange={setCalendarOpen}>
                       <DialogContent className="w-auto max-w-fit p-0 top-[254px] translate-y-0 [&>button]:hidden">
@@ -414,31 +437,26 @@ function NationalParkCardInner({
 
                   <div>
                     {photoUrl ? (
-                      <div className="flex items-center">
+                      <div className="flex items-center gap-1">
                         <Button
-                          variant="outline" size="sm"
-                          className="h-8 w-8 p-0 rounded-r-none border-r-0 text-gray-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-                          onClick={handleDeletePhoto} disabled={isUploading} title="Delete photo"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
+                          variant="tertiary" tone="danger" size="md" icon={<X />}
+                          onClick={handleDeletePhoto} disabled={isUploading}
+                          aria-label="Delete photo" title="Delete photo"
+                        />
                         <Button
-                          variant="outline" size="sm"
-                          className="h-8 gap-2 text-xs text-gray-500 hover:text-gray-700 rounded-l-none border-l-0 pl-2"
-                          onClick={() => visitPhotoInputRef.current?.click()} disabled={isUploading}
+                          variant="secondary" size="md" icon={<Camera />} className="whitespace-nowrap"
+                          onClick={() => visitPhotoInputRef.current?.click()}
+                          loading={isUploading}
                         >
-                          {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
                           Change Photo
                         </Button>
                       </div>
                     ) : (
                       <Button
-                        variant="outline" size="sm"
-                        className="h-8 gap-2 text-xs text-gray-500 hover:text-gray-700"
+                        variant="secondary" size="md" icon={<Camera />} className="whitespace-nowrap"
                         onClick={() => userId ? visitPhotoInputRef.current?.click() : alert("Sign in to upload photos")}
-                        disabled={isUploading}
+                        loading={isUploading}
                       >
-                        {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
                         {userId ? "Upload photo" : "Sign in to upload"}
                       </Button>
                     )}
@@ -469,11 +487,15 @@ function NationalParkCardInner({
               )}
 
               {isVisited && (
-                <Textarea
-                  placeholder="Add a note about your visit..."
+                <InputTextarea
+                  label="Visit note"
+                  hideLabel
+                  autoResize
+                  rows={4}
+                  placeholder="Tap to add a note about your visit."
+                  className="park-note"
                   value={note}
                   onChange={(e) => onUpdateNote(id, e.target.value)}
-                  className="min-h-[100px] rounded-[4px]"
                 />
               )}
             </div>
@@ -483,14 +505,14 @@ function NationalParkCardInner({
             </div>
 
             <div className="mb-6">
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + " National Park")}`}
-                target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-2 text-[#18A8F5] hover:text-[#18A8F5]/80 transition-colors"
-              >
-                <MapPin className="w-5 h-5" />
-                <span>Map</span>
-              </a>
+              <Button asChild variant="tertiary" size="lg" icon={<MapPin />}>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + " National Park")}`}
+                  target="_blank" rel="noopener noreferrer"
+                >
+                  Map
+                </a>
+              </Button>
             </div>
 
             <div className="mb-6">
@@ -498,7 +520,7 @@ function NationalParkCardInner({
               <ul className="space-y-2">
                 {facts.map((fact, index) => (
                   <li key={index} className="flex gap-2">
-                    <span className="text-brand-accent mt-1">•</span>
+                    <span className="text-ui-brand mt-1">•</span>
                     <span className="opacity-75">{fact}</span>
                   </li>
                 ))}
@@ -510,7 +532,7 @@ function NationalParkCardInner({
               <ul className="space-y-2">
                 {trivia.map((item, index) => (
                   <li key={index} className="flex gap-2">
-                    <span className="text-brand-accent mt-1">•</span>
+                    <span className="text-ui-brand mt-1">•</span>
                     <span className="opacity-75">{item}</span>
                   </li>
                 ))}
@@ -520,14 +542,15 @@ function NationalParkCardInner({
             <div className="mb-6">
               {import.meta.env.VITE_UNSPLASH_ACCESS_KEY && (
                 <div className="flex justify-end mb-2">
-                  <button
+                  <Button
+                    variant="tertiary"
+                    size="sm"
+                    icon={<RefreshCw />}
                     onClick={handleRefreshGalleryPhotos}
-                    disabled={isFetchingGalleryPhotos}
-                    className="text-xs text-gray-400 hover:text-brand-accent transition-colors disabled:opacity-50 flex items-center gap-1"
+                    loading={isFetchingGalleryPhotos}
                   >
-                    <RefreshCw className={`w-3 h-3 ${isFetchingGalleryPhotos ? "animate-spin" : ""}`} />
-                    {isFetchingGalleryPhotos ? "Loading…" : "Refresh photos"}
-                  </button>
+                    Refresh photos
+                  </Button>
                 </div>
               )}
               <div className="flex flex-col gap-4">
@@ -546,43 +569,55 @@ function NationalParkCardInner({
             </div>
           </div>
           </div>
-        </DrawerContent>
-      </Drawer>
-      <Dialog open={photoPickerOpen} onOpenChange={setPhotoPickerOpen}>
-        <DialogContent className="max-w-[360px] p-5 [&>button]:hidden">
-          <div className="flex items-center justify-between mb-3">
-            <DialogTitle className="font-semibold text-[16px]">Choose a photo</DialogTitle>
-            {import.meta.env.VITE_UNSPLASH_ACCESS_KEY && (
-              <button
-                onClick={handleRefreshPickerPhotos}
-                disabled={isFetchingPickerPhotos}
-                className="p-1.5 rounded-full text-gray-400 hover:text-brand-accent hover:bg-gray-100 transition-colors disabled:opacity-30"
-                title="Load new photos"
-              >
-                <RefreshCw className={`w-4 h-4 ${isFetchingPickerPhotos ? "animate-spin" : ""}`} />
-              </button>
-            )}
-          </div>
-          <DialogDescription className="sr-only">Select a header photo for {name}</DialogDescription>
-          <div className="grid grid-cols-2 gap-2">
-            {pickerPhotos.map((url, i) => (
-              <button
-                key={i}
-                onClick={() => { onUpdateHeaderImage(id, url); setPhotoPickerOpen(false); }}
-                className={`aspect-video rounded-md overflow-hidden transition-all hover:ring-2 ring-brand-accent ${imageUrl === url ? "ring-2" : ""}`}
-              >
-                <img src={resizeUnsplashUrl(url, 360)} alt={`${name} photo option ${i + 1}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={() => setPhotoPickerOpen(false)}
-            className="mt-3 w-full text-sm text-gray-500 hover:text-gray-700 transition-colors"
+
+          {/* Rendered inside the sheet: Radix locks pointer events and focus to
+              the sheet, and Modal's native <dialog> is not portalled. */}
+          <Modal
+            open={photoPickerOpen}
+            onClose={() => setPhotoPickerOpen(false)}
+            // Name the dialog by the heading text alone, not the Close button inside it.
+            aria-labelledby={photoPickerTitleId}
+            title={
+              <span className="flex items-center gap-3">
+                <ButtonRound
+                  size="md"
+                  icon={<X />}
+                  onClick={() => setPhotoPickerOpen(false)}
+                  aria-label="Close"
+                />
+                <span id={photoPickerTitleId}>Choose a photo</span>
+              </span>
+            }
+            actions={
+              import.meta.env.VITE_UNSPLASH_ACCESS_KEY ? (
+                <Button
+                  variant="tertiary"
+                  size="md"
+                  icon={<RefreshCw />}
+                  onClick={handleRefreshPickerPhotos}
+                  loading={isFetchingPickerPhotos}
+                >
+                  Rotate photos
+                </Button>
+              ) : undefined
+            }
           >
-            Cancel
-          </button>
-        </DialogContent>
-      </Dialog>
+            <div className="grid grid-cols-2 gap-2">
+              {pickerPhotos.map((url, i) => (
+                <button
+                  key={i}
+                  onClick={() => { onUpdateHeaderImage(id, url); setPhotoPickerOpen(false); }}
+                  className={`aspect-video rounded-md overflow-hidden transition-all hover:ring-2 ring-ui-action focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-action ${imageUrl === url ? "ring-2" : ""}`}
+                  aria-label={`Use ${name} photo option ${i + 1}`}
+                >
+                  <img src={resizeUnsplashUrl(url, 360)} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                </button>
+              ))}
+            </div>
+          </Modal>
+        </SheetPrimitive.Content>
+        </SheetPrimitive.Portal>
+      </SheetPrimitive.Root>
     </>
   );
 }
