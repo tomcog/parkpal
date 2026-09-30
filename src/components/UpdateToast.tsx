@@ -26,7 +26,7 @@ export function UpdateToast() {
           Reload
         </Button>
         <ButtonRound
-          variant="ghost"
+          variant="tertiary"
           size="md"
           icon={<X />}
           onClick={() => setNeedRefresh(false)}

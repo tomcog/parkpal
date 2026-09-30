@@ -229,7 +229,7 @@ export default function App() {
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <ButtonRound
-                  variant="ghost"
+                  variant="tertiary"
                   size="lg"
                   icon={<RouteIcon />}
                   onClick={() => setRouteFinderOpen(true)}
@@ -237,7 +237,7 @@ export default function App() {
                   title="Parks along your route"
                 />
                 <ButtonRound
-                  variant="ghost"
+                  variant="tertiary"
                   size="lg"
                   icon={<CircleUser />}
                   onClick={openUserMenu}
@@ -286,7 +286,7 @@ export default function App() {
                       <>
                         <div className="flex items-center gap-2">
                           <ButtonRound
-                            variant="ghost"
+                            variant="tertiary"
                             size="md"
                             icon={<PencilLine />}
                             onClick={() => setEditingUsername(true)}
@@ -418,7 +418,7 @@ export default function App() {
                 />
                 {searchQuery && (
                   <ButtonRound
-                    variant="ghost"
+                    variant="tertiary"
                     size="sm"
                     icon={<X />}
                     onClick={() => { setSearchQuery(""); searchInputRef.current?.focus(); }}
@@ -512,7 +512,7 @@ export default function App() {
               <p className="text-xs text-red-600 mt-0.5 font-mono break-all">{saveError}</p>
             </div>
             <ButtonRound
-              variant="ghost"
+              variant="tertiary"
               size="sm"
               icon={<X />}
               onClick={clearSaveError}
