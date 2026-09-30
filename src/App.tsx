@@ -365,11 +365,11 @@ export default function App() {
               title={nearestPark?.park.name ?? "Nearest National Park"}
               actions={
                 <>
-                  <Button variant="tertiary" size="md" onClick={() => setNearestDialogOpen(false)}>
+                  <Button variant="tertiary" size="lg" onClick={() => setNearestDialogOpen(false)}>
                     Close
                   </Button>
                   <Button
-                    size="md"
+                    size="lg"
                     onClick={() => {
                       if (!nearestPark) return;
                       setFilter("all");
